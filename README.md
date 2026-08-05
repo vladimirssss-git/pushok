@@ -2,7 +2,8 @@
 
 2D пиксель-арт платформер про котёнка Пушка. Браузерная игра на TypeScript + Phaser 3 + Vite.
 
-Прод: `https://<user>.github.io/pushok/`
+Репозиторий: https://github.com/vladimirssss-git/pushok
+Прод: https://vladimirssss-git.github.io/pushok/
 
 ## Требования
 

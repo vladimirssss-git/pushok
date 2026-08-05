@@ -5,8 +5,8 @@
 Браузерная 2D-игра про котёнка Пушка. TypeScript + Phaser 3 + Vite, без бэкенда.
 Прогресс игрока — `localStorage`. Деплой — статика на GitHub Pages.
 
-- GitHub: `<укажи URL после создания репозитория>`
-- Прод: `https://<user>.github.io/pushok/`
+- GitHub: https://github.com/vladimirssss-git/pushok
+- Прод: https://vladimirssss-git.github.io/pushok/ (после включения Pages)
 
 ## Read order
 

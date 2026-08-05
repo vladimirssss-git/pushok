@@ -18,8 +18,8 @@ tags: [moc, pushok]
 
 ## Быстрые ссылки
 
-- Репозиторий: `<GitHub URL>`
-- Прод: `<GitHub Pages URL>`
+- Репозиторий: https://github.com/vladimirssss-git/pushok
+- Прод: https://vladimirssss-git.github.io/pushok/
 - Правила для агентов: `../CLAUDE.md`, `../AGENTS.md`
 
 ## Как работать с этим vault
