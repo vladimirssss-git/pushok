@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME, TEX, BALANCE } from '@/config';
+import { GAME, TEX, BALANCE, LEVEL_1_LEDGES, LEVEL_1_FISH, PLAYER_START, FLOOR_TOP_Y } from '@/config';
 import { Pushok } from '@/entities/Pushok';
 import { applyDamage, isGameOver } from '@/systems/progression';
 import { loadSave, writeSave } from '@/systems/save';
@@ -28,7 +28,7 @@ export class GameScene extends Phaser.Scene {
     this.platforms = this.physics.add.staticGroup();
     this.buildLevel();
 
-    this.pushok = new Pushok(this, 80, GAME.height - 80);
+    this.pushok = new Pushok(this, PLAYER_START.x, PLAYER_START.y);
     this.physics.add.collider(this.pushok, this.platforms);
 
     this.fishGroup = this.physics.add.group({ allowGravity: false, immovable: true });
@@ -64,35 +64,29 @@ export class GameScene extends Phaser.Scene {
     // Падение за пределы уровня — урон.
     if (this.pushok.y > GAME.height + 64) {
       this.hurt(time);
-      this.pushok.setPosition(80, GAME.height - 80);
+      this.pushok.setPosition(PLAYER_START.x, PLAYER_START.y);
       (this.pushok.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
     }
   }
 
   private buildLevel(): void {
     const t = GAME.tileSize;
-    const floorY = GAME.height - t / 2;
+    // Пол
     for (let x = t / 2; x < GAME.width; x += t) {
-      this.platforms.create(x, floorY, TEX.ground);
+      this.platforms.create(x, FLOOR_TOP_Y + t / 2, TEX.ground);
     }
-    const ledges: Array<[number, number]> = [
-      [200, GAME.height - 110],
-      [232, GAME.height - 110],
-      [400, GAME.height - 170],
-      [432, GAME.height - 170],
-      [560, GAME.height - 240],
-    ];
-    for (const [x, y] of ledges) this.platforms.create(x, y, TEX.ground);
+    // Уступы: координаты из config/level.ts, выведены из геометрии прыжка
+    for (const ledge of LEVEL_1_LEDGES) {
+      for (let i = 0; i < ledge.tiles; i += 1) {
+        this.platforms.create(ledge.leftX + i * t + t / 2, ledge.topY + t / 2, TEX.ground);
+      }
+    }
   }
 
   private spawnFish(): void {
-    const spots: Array<[number, number]> = [
-      [216, GAME.height - 140],
-      [416, GAME.height - 200],
-      [560, GAME.height - 270],
-      [120, GAME.height - 70],
-    ];
-    for (const [x, y] of spots) this.fishGroup.create(x, y, TEX.fish);
+    for (const spot of LEVEL_1_FISH) {
+      this.fishGroup.create(spot.x, spot.y, TEX.fish);
+    }
   }
 
   private collectFish(fishObj: Phaser.Physics.Arcade.Sprite): void {
