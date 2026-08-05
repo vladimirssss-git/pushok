@@ -1,0 +1,35 @@
+# deps
+node_modules/
+.pnp*
+
+# build
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# art sources (не коммитим, экспортируем в public/assets)
+art-src/
+
+# os / editors
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+
+# Obsidian: рабочее состояние — локальное, конфиг vault — версионируется
+docs/.obsidian/workspace.json
+docs/.obsidian/workspace-mobile.json
+docs/.obsidian/plugins/
+docs/.obsidian/themes/
+docs/.trash/
+
+# logs / coverage
+*.log
+npm-debug.log*
+coverage/
