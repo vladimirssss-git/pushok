@@ -82,7 +82,7 @@ export class GameScene extends Phaser.Scene {
       (this.touchControls?.consumeJumpPress() ?? false);
 
     this.pushok.handleInput(dir, jumpPressed, time);
-    this.dog.update();
+    this.dog.update(this.pushok.x, this.pushok.y);
 
     // Падение за пределы уровня — урон.
     if (this.pushok.y > GAME.height + 64) {
