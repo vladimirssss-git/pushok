@@ -3,6 +3,7 @@ import { GAME, TEX, BALANCE, LEVEL_1_LEDGES, LEVEL_1_FISH, PLAYER_START, FLOOR_T
 import { Pushok } from '@/entities/Pushok';
 import { applyDamage, isGameOver } from '@/systems/progression';
 import { loadSave, writeSave } from '@/systems/save';
+import { TouchControls } from '@/systems/touchControls';
 
 export class GameScene extends Phaser.Scene {
   private pushok!: Pushok;
@@ -11,6 +12,7 @@ export class GameScene extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private keys!: Record<'left' | 'right' | 'jump', Phaser.Input.Keyboard.Key>;
   private hud!: Phaser.GameObjects.Text;
+  private touchControls: TouchControls | null = null;
 
   private fish = 0;
   private lives: number = BALANCE.startingLives;
@@ -47,17 +49,23 @@ export class GameScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '14px', color: '#ffffff',
     }).setScrollFactor(0).setDepth(10);
     this.updateHud();
+
+    if (TouchControls.isTouchDevice(this)) {
+      this.touchControls = new TouchControls(this);
+    }
   }
 
   override update(time: number): void {
     let dir: -1 | 0 | 1 = 0;
     if (this.cursors.left.isDown || this.keys.left.isDown) dir = -1;
     else if (this.cursors.right.isDown || this.keys.right.isDown) dir = 1;
+    else if (this.touchControls) dir = this.touchControls.direction;
 
     const jumpPressed =
       Phaser.Input.Keyboard.JustDown(this.cursors.space) ||
       Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
-      Phaser.Input.Keyboard.JustDown(this.keys.jump);
+      Phaser.Input.Keyboard.JustDown(this.keys.jump) ||
+      (this.touchControls?.consumeJumpPress() ?? false);
 
     this.pushok.handleInput(dir, jumpPressed, time);
 

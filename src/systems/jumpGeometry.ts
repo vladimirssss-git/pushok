@@ -41,3 +41,39 @@ export function safeGap(): number {
 export function isReachable(stepUpPx: number, gapPx: number): boolean {
   return stepUpPx <= maxJumpHeight() && gapPx <= maxJumpDistance();
 }
+
+/**
+ * Высота, набранная за t секунд после отталкивания (по той же параболе,
+ * что и maxJumpHeight — просто не в вершине, а в произвольный момент).
+ * h(t) = v·t − g·t²/2
+ */
+export function riseAtTime(tSec: number): number {
+  const v = Math.abs(PHYSICS.jumpVelocity);
+  return v * tSec - 0.5 * PHYSICS.gravityY * tSec * tSec;
+}
+
+/**
+ * Высота, набранная к моменту, когда игрок горизонтально долетает
+ * до дистанции gapPx от точки отталкивания.
+ */
+export function heightAtGap(gapPx: number): number {
+  return riseAtTime(gapPx / PHYSICS.runSpeed);
+}
+
+/**
+ * isReachable проверяет высоту и дальность прыжка независимо друг от друга —
+ * этого недостаточно. Прыжок на уступ выше начального уровня — это гонка:
+ * к моменту, когда игрок долетает горизонтально до передней грани уступа,
+ * он должен УЖЕ быть на нужной высоте, иначе врежется в торец уступа сбоку
+ * (bonk), а не запрыгнет на него. isReachable(55, 48) === true не спасает,
+ * если игрок этот 48px пролетает раньше, чем поднимется на 55px.
+ *
+ * gapPx здесь — дистанция от точки отталкивания до ближнего края уступа
+ * (а не «чистый» зазор между площадками), поэтому она зависит от того,
+ * откуда игрок стартовал прыжок: от дальнего края предыдущей площадки
+ * (лучший случай) или сразу после приземления, без разбега (худший случай,
+ * см. `worstCaseGap` в `config/level.ts`).
+ */
+export function isReachableAtGap(stepUpPx: number, gapPx: number): boolean {
+  return heightAtGap(gapPx) >= stepUpPx;
+}

@@ -3,10 +3,11 @@ import {
   maxJumpHeight,
   maxJumpDistance,
   isReachable,
+  isReachableAtGap,
   safeStepUp,
   safeGap,
 } from '@/systems/jumpGeometry';
-import { LEVEL_1_LEDGES, FLOOR_TOP_Y, GAME } from '@/config';
+import { LEVEL_1_LEDGES, FLOOR_TOP_Y, GAME, PLAYER_START, worstCaseGap } from '@/config';
 
 describe('геометрия прыжка', () => {
   it('высота прыжка считается из физики, а не берётся на глаз', () => {
@@ -62,5 +63,48 @@ describe('уровень 1 проходим', () => {
     for (const l of LEVEL_1_LEDGES) {
       expect(l.topY).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('уступ достижим синхронно по высоте и времени, а не только по пределам', () => {
+  // isReachable проверяет stepUp и gap независимо — этого недостаточно.
+  // Баг: уступ считался «достижимым» по обоим пределам, но игрок всё равно
+  // не допрыгивал, потому что к моменту, когда он долетал горизонтально
+  // до передней грани уступа, высоты уже не хватало — он врезался в торец.
+  // https://github.com/vladimirssss-git/pushok — devlog 2026-08-05.
+
+  it('прыжок с разбега (от дальнего края) долетает уже на нужной высоте', () => {
+    for (let i = 1; i < LEVEL_1_LEDGES.length; i += 1) {
+      const from = LEVEL_1_LEDGES[i - 1]!;
+      const to = LEVEL_1_LEDGES[i]!;
+      const stepUp = from.topY - to.topY;
+      const bestCaseGap = to.leftX - (from.leftX + from.tiles * GAME.tileSize);
+
+      expect(
+        isReachableAtGap(stepUp, bestCaseGap),
+        `уступ ${i} недостижим с разбега`,
+      ).toBe(true);
+    }
+  });
+
+  it('прыжок без разбега (сразу после посадки у ближнего края) тоже долетает', () => {
+    for (let i = 1; i < LEVEL_1_LEDGES.length; i += 1) {
+      const from = LEVEL_1_LEDGES[i - 1]!;
+      const to = LEVEL_1_LEDGES[i]!;
+      const stepUp = from.topY - to.topY;
+
+      expect(
+        isReachableAtGap(stepUp, worstCaseGap()),
+        `уступ ${i} недостижим без разбега — игрок мог приземлиться у ближнего края`,
+      ).toBe(true);
+    }
+  });
+
+  it('первый прыжок (пол → уступ 1) от старта игрока не впритык', () => {
+    const first = LEVEL_1_LEDGES[0]!;
+    const stepUp = FLOOR_TOP_Y - first.topY;
+    const gapFromStart = first.leftX - PLAYER_START.x;
+
+    expect(isReachableAtGap(stepUp, gapFromStart)).toBe(true);
   });
 });

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { TEX, GAME } from '@/config';
+import { TEX, GAME, PLAYER } from '@/config';
 
 /**
  * Единственное место загрузки ассетов.
@@ -17,7 +17,7 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.makePlaceholder(TEX.pushok, 24, 28, 0xf2c185);
+    this.makePlaceholder(TEX.pushok, PLAYER.width, PLAYER.height, 0xf2c185);
     this.makePlaceholder(TEX.fish, 16, 12, 0x8fd3ff);
     this.makePlaceholder(TEX.ground, GAME.tileSize, GAME.tileSize, 0x3d5a45);
     this.scene.start('Menu');

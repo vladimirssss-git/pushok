@@ -22,6 +22,9 @@ Thumbs.db
 .idea/
 *.swp
 
+# Claude Code — локальный кэш инструментов
+.claude/.cache/
+
 # Obsidian: рабочее состояние — локальное, конфиг vault — версионируется
 docs/.obsidian/workspace.json
 docs/.obsidian/workspace-mobile.json
