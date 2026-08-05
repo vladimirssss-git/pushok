@@ -75,3 +75,13 @@ export const LEVEL_1_FISH: ReadonlyArray<{ x: number; y: number }> = [
 ];
 
 export const PLAYER_START = { x: 64, y: FLOOR_TOP_Y } as const;
+
+/**
+ * Колючки стоят на полу за уступами, на чистом отрезке пола после лестницы
+ * (уступы занимают x ≈ 130..482, см. LEVEL_1_LEDGES). Y считается в
+ * GameScene из реальной высоты текстуры — здесь только x.
+ */
+export const LEVEL_1_SPIKES: ReadonlyArray<{ x: number }> = [{ x: 560 }];
+
+/** Собака бегает по чистому отрезку пола после лестницы уступов. */
+export const LEVEL_1_DOG_PATROL = { minX: 490, maxX: 620, y: FLOOR_TOP_Y } as const;

@@ -1,6 +1,11 @@
 import Phaser from 'phaser';
-import { GAME, TEX, BALANCE, LEVEL_1_LEDGES, LEVEL_1_FISH, PLAYER_START, FLOOR_TOP_Y } from '@/config';
+import {
+  GAME, TEX, BALANCE,
+  LEVEL_1_LEDGES, LEVEL_1_FISH, LEVEL_1_SPIKES, LEVEL_1_DOG_PATROL,
+  PLAYER_START, FLOOR_TOP_Y,
+} from '@/config';
 import { Pushok } from '@/entities/Pushok';
+import { Dog } from '@/entities/Dog';
 import { applyDamage, isGameOver } from '@/systems/progression';
 import { loadSave, writeSave } from '@/systems/save';
 import { TouchControls } from '@/systems/touchControls';
@@ -9,6 +14,8 @@ export class GameScene extends Phaser.Scene {
   private pushok!: Pushok;
   private platforms!: Phaser.Physics.Arcade.StaticGroup;
   private fishGroup!: Phaser.Physics.Arcade.Group;
+  private hazards!: Phaser.Physics.Arcade.StaticGroup;
+  private dog!: Dog;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private keys!: Record<'left' | 'right' | 'jump', Phaser.Input.Keyboard.Key>;
   private hud!: Phaser.GameObjects.Text;
@@ -36,6 +43,13 @@ export class GameScene extends Phaser.Scene {
     this.fishGroup = this.physics.add.group({ allowGravity: false, immovable: true });
     this.spawnFish();
     this.physics.add.overlap(this.pushok, this.fishGroup, (_p, f) => this.collectFish(f as Phaser.Physics.Arcade.Sprite));
+
+    this.hazards = this.physics.add.staticGroup();
+    this.spawnHazards();
+    this.physics.add.overlap(this.pushok, this.hazards, (_p, _h) => this.hurt(this.time.now));
+
+    this.dog = new Dog(this, LEVEL_1_DOG_PATROL.minX, LEVEL_1_DOG_PATROL.y, LEVEL_1_DOG_PATROL.minX, LEVEL_1_DOG_PATROL.maxX);
+    this.physics.add.overlap(this.pushok, this.dog, (_p, _d) => this.hurt(this.time.now));
 
     const kb = this.input.keyboard!;
     this.cursors = kb.createCursorKeys();
@@ -68,6 +82,7 @@ export class GameScene extends Phaser.Scene {
       (this.touchControls?.consumeJumpPress() ?? false);
 
     this.pushok.handleInput(dir, jumpPressed, time);
+    this.dog.update();
 
     // Падение за пределы уровня — урон.
     if (this.pushok.y > GAME.height + 64) {
@@ -94,6 +109,15 @@ export class GameScene extends Phaser.Scene {
   private spawnFish(): void {
     for (const spot of LEVEL_1_FISH) {
       this.fishGroup.create(spot.x, spot.y, TEX.fish);
+    }
+  }
+
+  /** Колючки ставятся на пол; Y берётся из реальной высоты спрайта, а не подбирается на глаз. */
+  private spawnHazards(): void {
+    for (const spot of LEVEL_1_SPIKES) {
+      const spike = this.hazards.create(spot.x, FLOOR_TOP_Y, TEX.spike) as Phaser.Physics.Arcade.Sprite;
+      spike.setY(FLOOR_TOP_Y - spike.height / 2);
+      spike.refreshBody();
     }
   }
 

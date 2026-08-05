@@ -7,6 +7,8 @@ export const TEX = {
   pushok: 'pushok',
   fish: 'fish',
   ground: 'ground',
+  spike: 'spike',
+  dog: 'dog',
 } as const;
 
 export const ANIM = {

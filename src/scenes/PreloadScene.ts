@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
-import { TEX, GAME, PLAYER } from '@/config';
+import { TEX, GAME } from '@/config';
 
 /**
  * Единственное место загрузки ассетов.
- * Пока настоящих спрайтов нет — рисуем плейсхолдеры кодом,
- * чтобы игра запускалась и была видна физика.
+ * Пушок, рыбка, колючки и собака — настоящие спрайты (public/assets/sprites).
+ * Земля пока без арта — рисуем плейсхолдер кодом.
  */
 export class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -12,13 +12,13 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // Сюда добавлять реальные ассеты:
-    // this.load.spritesheet(TEX.pushok, 'assets/sprites/pushok.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.image(TEX.pushok, 'assets/sprites/pushok.png');
+    this.load.image(TEX.fish, 'assets/sprites/fish.png');
+    this.load.image(TEX.spike, 'assets/sprites/spike.png');
+    this.load.image(TEX.dog, 'assets/sprites/dog.png');
   }
 
   create(): void {
-    this.makePlaceholder(TEX.pushok, PLAYER.width, PLAYER.height, 0xf2c185);
-    this.makePlaceholder(TEX.fish, 16, 12, 0x8fd3ff);
     this.makePlaceholder(TEX.ground, GAME.tileSize, GAME.tileSize, 0x3d5a45);
     this.scene.start('Menu');
   }
