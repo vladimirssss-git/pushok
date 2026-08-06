@@ -6,3 +6,5 @@ export * from './player';
 export * from './level';
 export * from './controls';
 export * from './enemy';
+export * from './customLevels';
+export * from './editor';

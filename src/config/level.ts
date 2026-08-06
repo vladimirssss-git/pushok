@@ -42,3 +42,23 @@ export const MAX_LEVEL = 5;
 
 /** Собака патрулирует эту часть пола, пока не увидит Пушка. */
 export const DOG_PATROL = { minX: GAME.width * 0.4, maxX: GAME.width - 60, y: FLOOR_TOP_Y } as const;
+
+/** Зона патруля собаки: минимум/максимум по X на высоте пола. */
+export interface DogPatrolZone {
+  minX: number;
+  maxX: number;
+  y: number;
+}
+
+/**
+ * Полное описание уровня, собранное вручную в редакторе (`EditorScene`) —
+ * та же форма, что отдаёт процедурный генератор (`GeneratedLevel` в
+ * `levelGenerator.ts`), плюс зона патруля собаки (там она общая константа,
+ * здесь — часть авторского уровня).
+ */
+export interface LevelData {
+  ledges: Ledge[];
+  fish: { x: number; y: number }[];
+  exit: { x: number; y: number };
+  dogPatrol: DogPatrolZone;
+}

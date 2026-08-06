@@ -5,6 +5,7 @@ import {
 } from '@/config';
 import type { Ledge } from '@/config/level';
 import { safeStepUp, isReachableAtGap, gapWindowForStepUp } from './jumpGeometry';
+import { ledgesTooClose } from './levelValidation';
 
 export interface GeneratedLevel {
   ledges: Ledge[];
@@ -27,18 +28,13 @@ function clamp(v: number, min: number, max: number): number {
 
 /**
  * Слишком ли близко уступ к уже поставленным — не только к предыдущему.
- * По Y — реальное пересечение ряда тайлов; по X — с запасом padding,
- * иначе зигзаг может вернуться в старую X-область на той же высоте и два
- * уступа сольются в один визуальный блок, даже не пересекаясь по пикселям.
- * padding=0 — это ещё и абсолютный минимум: буквальное непересечение
- * прямоугольников, последняя линия защиты от наслаивания блоков.
+ * padding=0 — абсолютный минимум: буквальное непересечение прямоугольников,
+ * последняя линия защиты от наслаивания блоков. Общая проверка с редактором
+ * уровней — см. `levelValidation.ts`.
  */
 function tooCloseToAny(placed: readonly Ledge[], leftX: number, topY: number, padding: number): boolean {
-  return placed.some((l) => {
-    const xTooClose = leftX < l.leftX + l.tiles * T + padding && leftX + LEDGE_WIDTH_PX + padding > l.leftX;
-    const yOverlap = topY < l.topY + T && topY + T > l.topY;
-    return xTooClose && yOverlap;
-  });
+  const candidate: Ledge = { leftX, topY, tiles: LEDGE_TILES };
+  return placed.some((l) => ledgesTooClose(candidate, l, padding));
 }
 
 function placeAt(

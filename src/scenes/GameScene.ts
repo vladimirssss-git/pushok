@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import {
   GAME, TEX, BALANCE,
-  PLAYER_START, FLOOR_TOP_Y, MAX_LEVEL, DOG_PATROL,
+  PLAYER_START, FLOOR_TOP_Y, MAX_LEVEL, DOG_PATROL, CUSTOM_LEVELS,
 } from '@/config';
 import type { Ledge } from '@/config/level';
 import { Pushok } from '@/entities/Pushok';
@@ -47,7 +47,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    const generated = generateLevel(this.level);
+    // Авторский уровень из редактора (?editor → «Экспорт» → вставлен в
+    // customLevels.ts) приоритетнее процедурной генерации для этого номера.
+    const custom = CUSTOM_LEVELS[this.level];
+    const generated = custom ?? generateLevel(this.level);
+    const dogPatrol = custom?.dogPatrol ?? DOG_PATROL;
 
     this.platforms = this.physics.add.staticGroup();
     this.buildLevel(generated.ledges);
@@ -63,7 +67,7 @@ export class GameScene extends Phaser.Scene {
     this.exit.refreshBody();
     this.physics.add.overlap(this.pushok, this.exit, () => this.completeLevel());
 
-    this.dog = new Dog(this, DOG_PATROL.maxX, DOG_PATROL.y, DOG_PATROL.minX, DOG_PATROL.maxX);
+    this.dog = new Dog(this, dogPatrol.maxX, dogPatrol.y, dogPatrol.minX, dogPatrol.maxX);
     this.physics.add.collider(this.dog, this.platforms);
     this.physics.add.overlap(this.pushok, this.dog, (_p, _d) => this.hurt(this.time.now));
 

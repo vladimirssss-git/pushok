@@ -20,7 +20,10 @@ export class PreloadScene extends Phaser.Scene {
   create(): void {
     this.makePlaceholder(TEX.ground, GAME.tileSize, GAME.tileSize, 0x3d5a45);
     this.makePlaceholder(TEX.exit, GAME.tileSize, Math.round(GAME.tileSize * 1.5), 0xffd166);
-    this.scene.start('Menu');
+
+    // Конструктор уровней — dev-инструмент, не для игроков: только по ?editor в URL.
+    const isEditor = new URLSearchParams(window.location.search).has('editor');
+    this.scene.start(isEditor ? 'Editor' : 'Menu');
   }
 
   private makePlaceholder(key: string, w: number, h: number, color: number): void {
