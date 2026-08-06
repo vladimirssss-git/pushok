@@ -77,3 +77,23 @@ export function heightAtGap(gapPx: number): number {
 export function isReachableAtGap(stepUpPx: number, gapPx: number): boolean {
   return heightAtGap(gapPx) >= stepUpPx;
 }
+
+/**
+ * Окно допустимых дистанций прыжка для заданного подъёма: высота набирается
+ * не мгновенно и не держится вечно — до пика траектории она растёт, после
+ * пика падает обратно, поэтому подходящих дистанций не одна точка, а диапазон
+ * между «докуда допрыгнул на подъёме» и «докуда ещё не упал обратно».
+ * Используется процедурной генерацией уровня, чтобы подбирать зазор под
+ * случайный подъём, а не только проверять готовую пару чисел.
+ * Возвращает null, если stepUpPx выше предела прыжка — окна не существует.
+ */
+export function gapWindowForStepUp(stepUpPx: number): { min: number; max: number } | null {
+  const v = Math.abs(PHYSICS.jumpVelocity);
+  const g = PHYSICS.gravityY;
+  const discriminant = v * v - 2 * g * stepUpPx;
+  if (discriminant < 0) return null;
+  const sqrtD = Math.sqrt(discriminant);
+  const t1 = Math.max(0, (v - sqrtD) / g);
+  const t2 = (v + sqrtD) / g;
+  return { min: t1 * PHYSICS.runSpeed, max: t2 * PHYSICS.runSpeed };
+}

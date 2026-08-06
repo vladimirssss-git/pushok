@@ -5,6 +5,7 @@ import { PreloadScene } from '@/scenes/PreloadScene';
 import { MenuScene } from '@/scenes/MenuScene';
 import { GameScene } from '@/scenes/GameScene';
 import { GameOverScene } from '@/scenes/GameOverScene';
+import { VictoryScene } from '@/scenes/VictoryScene';
 
 new Phaser.Game({
   type: Phaser.AUTO,
@@ -23,5 +24,5 @@ new Phaser.Game({
     default: 'arcade',
     arcade: { gravity: { x: 0, y: PHYSICS.gravityY }, debug: false },
   },
-  scene: [BootScene, PreloadScene, MenuScene, GameScene, GameOverScene],
+  scene: [BootScene, PreloadScene, MenuScene, GameScene, GameOverScene, VictoryScene],
 } as Phaser.Types.Core.GameConfig);

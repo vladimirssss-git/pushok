@@ -1,54 +1,70 @@
 import Phaser from 'phaser';
 import {
   GAME, TEX, BALANCE,
-  LEVEL_1_LEDGES, LEVEL_1_FISH, LEVEL_1_SPIKES, LEVEL_1_DOG_PATROL,
-  PLAYER_START, FLOOR_TOP_Y,
+  PLAYER_START, FLOOR_TOP_Y, MAX_LEVEL, DOG_PATROL,
 } from '@/config';
+import type { Ledge } from '@/config/level';
 import { Pushok } from '@/entities/Pushok';
 import { Dog } from '@/entities/Dog';
 import { applyDamage, isGameOver } from '@/systems/progression';
 import { loadSave, writeSave } from '@/systems/save';
 import { TouchControls } from '@/systems/touchControls';
+import { generateLevel } from '@/systems/levelGenerator';
+
+interface GameSceneData {
+  level?: number;
+  fish?: number;
+  lives?: number;
+}
 
 export class GameScene extends Phaser.Scene {
   private pushok!: Pushok;
   private platforms!: Phaser.Physics.Arcade.StaticGroup;
   private fishGroup!: Phaser.Physics.Arcade.Group;
-  private hazards!: Phaser.Physics.Arcade.StaticGroup;
+  private exit!: Phaser.Physics.Arcade.Image;
   private dog!: Dog;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private keys!: Record<'left' | 'right' | 'jump', Phaser.Input.Keyboard.Key>;
   private hud!: Phaser.GameObjects.Text;
   private touchControls: TouchControls | null = null;
 
+  private level = 1;
   private fish = 0;
   private lives: number = BALANCE.startingLives;
   private invulnerableUntilMs = 0;
+  private levelCompleted = false;
 
   constructor() {
     super('Game');
   }
 
-  create(): void {
-    this.fish = 0;
-    this.lives = BALANCE.startingLives;
+  init(data: GameSceneData): void {
+    this.level = data.level ?? 1;
+    this.fish = data.fish ?? 0;
+    this.lives = data.lives ?? BALANCE.startingLives;
     this.invulnerableUntilMs = 0;
+    this.levelCompleted = false;
+  }
+
+  create(): void {
+    const generated = generateLevel(this.level);
 
     this.platforms = this.physics.add.staticGroup();
-    this.buildLevel();
+    this.buildLevel(generated.ledges);
 
     this.pushok = new Pushok(this, PLAYER_START.x, PLAYER_START.y);
     this.physics.add.collider(this.pushok, this.platforms);
 
     this.fishGroup = this.physics.add.group({ allowGravity: false, immovable: true });
-    this.spawnFish();
+    this.spawnFish(generated.fish);
     this.physics.add.overlap(this.pushok, this.fishGroup, (_p, f) => this.collectFish(f as Phaser.Physics.Arcade.Sprite));
 
-    this.hazards = this.physics.add.staticGroup();
-    this.spawnHazards();
-    this.physics.add.overlap(this.pushok, this.hazards, (_p, _h) => this.hurt(this.time.now));
+    this.exit = this.physics.add.staticImage(generated.exit.x, generated.exit.y, TEX.exit).setOrigin(0.5, 1);
+    this.exit.refreshBody();
+    this.physics.add.overlap(this.pushok, this.exit, () => this.completeLevel());
 
-    this.dog = new Dog(this, LEVEL_1_DOG_PATROL.minX, LEVEL_1_DOG_PATROL.y, LEVEL_1_DOG_PATROL.minX, LEVEL_1_DOG_PATROL.maxX);
+    this.dog = new Dog(this, DOG_PATROL.maxX, DOG_PATROL.y, DOG_PATROL.minX, DOG_PATROL.maxX);
+    this.physics.add.collider(this.dog, this.platforms);
     this.physics.add.overlap(this.pushok, this.dog, (_p, _d) => this.hurt(this.time.now));
 
     const kb = this.input.keyboard!;
@@ -92,32 +108,24 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private buildLevel(): void {
+  private buildLevel(ledges: readonly Ledge[]): void {
     const t = GAME.tileSize;
     // Пол
     for (let x = t / 2; x < GAME.width; x += t) {
       this.platforms.create(x, FLOOR_TOP_Y + t / 2, TEX.ground);
     }
-    // Уступы: координаты из config/level.ts, выведены из геометрии прыжка
-    for (const ledge of LEVEL_1_LEDGES) {
+    // Уступы: расстановка процедурная (systems/levelGenerator.ts), допрыгиваемость
+    // гарантирована той же физикой, что и в systems/jumpGeometry.ts.
+    for (const ledge of ledges) {
       for (let i = 0; i < ledge.tiles; i += 1) {
         this.platforms.create(ledge.leftX + i * t + t / 2, ledge.topY + t / 2, TEX.ground);
       }
     }
   }
 
-  private spawnFish(): void {
-    for (const spot of LEVEL_1_FISH) {
+  private spawnFish(spots: ReadonlyArray<{ x: number; y: number }>): void {
+    for (const spot of spots) {
       this.fishGroup.create(spot.x, spot.y, TEX.fish);
-    }
-  }
-
-  /** Колючки ставятся на пол; Y берётся из реальной высоты спрайта, а не подбирается на глаз. */
-  private spawnHazards(): void {
-    for (const spot of LEVEL_1_SPIKES) {
-      const spike = this.hazards.create(spot.x, FLOOR_TOP_Y, TEX.spike) as Phaser.Physics.Arcade.Sprite;
-      spike.setY(FLOOR_TOP_Y - spike.height / 2);
-      spike.refreshBody();
     }
   }
 
@@ -126,6 +134,21 @@ export class GameScene extends Phaser.Scene {
     this.fish += 1;
     this.updateHud();
     this.persist();
+  }
+
+  private completeLevel(): void {
+    if (this.levelCompleted) return;
+    this.levelCompleted = true;
+
+    if (this.level >= MAX_LEVEL) {
+      const save = loadSave();
+      writeSave({ ...save, level: 1, fish: this.fish, lives: this.lives });
+      this.scene.start('Victory', { fish: this.fish });
+      return;
+    }
+
+    this.persist();
+    this.scene.start('Game', { level: this.level + 1, fish: this.fish, lives: this.lives });
   }
 
   private hurt(nowMs: number): void {
@@ -138,16 +161,18 @@ export class GameScene extends Phaser.Scene {
     }
     if (isGameOver(this.lives)) {
       this.persist();
-      this.scene.start('GameOver', { fish: this.fish });
+      // Рестарт после смерти — с того же уровня и с сохранёнными рыбками
+      // (см. «Кор-луп» в docs/01 Design), но со свежими жизнями.
+      this.scene.start('GameOver', { fish: this.fish, level: this.level });
     }
   }
 
   private updateHud(): void {
-    this.hud.setText(`Рыбки: ${this.fish}   Жизни: ${this.lives}`);
+    this.hud.setText(`Уровень: ${this.level}   Рыбки: ${this.fish}   Жизни: ${this.lives}`);
   }
 
   private persist(): void {
     const save = loadSave();
-    writeSave({ ...save, fish: this.fish, lives: this.lives });
+    writeSave({ ...save, level: this.level, fish: this.fish, lives: this.lives });
   }
 }

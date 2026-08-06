@@ -3,8 +3,8 @@ import { TEX, GAME } from '@/config';
 
 /**
  * Единственное место загрузки ассетов.
- * Пушок, рыбка, колючки и собака — настоящие спрайты (public/assets/sprites).
- * Земля пока без арта — рисуем плейсхолдер кодом.
+ * Пушок, рыбка и собака — настоящие спрайты (public/assets/sprites).
+ * Земля и выход пока без арта — рисуем плейсхолдер кодом.
  */
 export class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -14,12 +14,12 @@ export class PreloadScene extends Phaser.Scene {
   preload(): void {
     this.load.image(TEX.pushok, 'assets/sprites/pushok.png');
     this.load.image(TEX.fish, 'assets/sprites/fish.png');
-    this.load.image(TEX.spike, 'assets/sprites/spike.png');
     this.load.image(TEX.dog, 'assets/sprites/dog.png');
   }
 
   create(): void {
     this.makePlaceholder(TEX.ground, GAME.tileSize, GAME.tileSize, 0x3d5a45);
+    this.makePlaceholder(TEX.exit, GAME.tileSize, Math.round(GAME.tileSize * 1.5), 0xffd166);
     this.scene.start('Menu');
   }
 

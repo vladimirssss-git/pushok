@@ -6,6 +6,8 @@ export const ENEMY = {
   dogChaseSpeed: 140,
   /** Дальность обнаружения по горизонтали, px. */
   dogDetectionRangeX: 220,
-  /** Допуск по высоте от пола, чтобы считать цель «внизу», px. Меньше STEP (45) — уступы не засчитываются. */
-  dogDetectionToleranceY: 20,
+  /** Дальность обнаружения по вертикали, px — собака видит Пушка и на уступах, не только на полу. */
+  dogDetectionRangeY: 140,
+  /** Скорость прыжка собаки при погоне — та же физика, что и у игрока (`PHYSICS.jumpVelocity`). */
+  dogJumpVelocity: -470,
 } as const;

@@ -6,8 +6,9 @@ import {
   isReachableAtGap,
   safeStepUp,
   safeGap,
+  gapWindowForStepUp,
 } from '@/systems/jumpGeometry';
-import { LEVEL_1_LEDGES, FLOOR_TOP_Y, GAME, PLAYER_START, worstCaseGap } from '@/config';
+import { GAME } from '@/config';
 
 describe('геометрия прыжка', () => {
   it('высота прыжка считается из физики, а не берётся на глаз', () => {
@@ -23,88 +24,37 @@ describe('геометрия прыжка', () => {
     expect(safeStepUp()).toBeLessThan(maxJumpHeight());
     expect(safeGap()).toBeLessThan(maxJumpDistance());
   });
-});
 
-describe('уровень 1 проходим', () => {
-  const surfaces = [
-    { leftX: 0, topY: FLOOR_TOP_Y, rightX: GAME.width },
-    ...LEVEL_1_LEDGES.map((l) => ({
-      leftX: l.leftX,
-      topY: l.topY,
-      rightX: l.leftX + l.tiles * GAME.tileSize,
-    })),
-  ];
-
-  it('каждый следующий уступ достижим с предыдущего', () => {
-    for (let i = 1; i < surfaces.length; i += 1) {
-      const from = surfaces[i - 1]!;
-      const to = surfaces[i]!;
-      const stepUp = from.topY - to.topY;
-      const gap = Math.max(0, to.leftX - from.rightX);
-
-      expect(
-        isReachable(stepUp, gap),
-        `уступ ${i} недостижим: подъём ${stepUp}px при пределе ${maxJumpHeight().toFixed(1)}px, ` +
-          `разрыв ${gap}px при пределе ${maxJumpDistance().toFixed(1)}px`,
-      ).toBe(true);
-    }
-  });
-
-  it('подъёмы и разрывы уложены в запас прочности, а не впритык к пределу', () => {
-    for (let i = 1; i < surfaces.length; i += 1) {
-      const from = surfaces[i - 1]!;
-      const to = surfaces[i]!;
-      expect(from.topY - to.topY).toBeLessThanOrEqual(safeStepUp());
-      expect(Math.max(0, to.leftX - from.rightX)).toBeLessThanOrEqual(safeGap());
-    }
-  });
-
-  it('уступы не уходят за верхнюю границу экрана', () => {
-    for (const l of LEVEL_1_LEDGES) {
-      expect(l.topY).toBeGreaterThan(0);
-    }
+  it('isReachable отвергает подъём или разрыв за пределами прыжка', () => {
+    expect(isReachable(maxJumpHeight() + 1, 10)).toBe(false);
+    expect(isReachable(10, maxJumpDistance() + 1)).toBe(false);
+    expect(isReachable(safeStepUp(), safeGap())).toBe(true);
   });
 });
 
-describe('уступ достижим синхронно по высоте и времени, а не только по пределам', () => {
-  // isReachable проверяет stepUp и gap независимо — этого недостаточно.
-  // Баг: уступ считался «достижимым» по обоим пределам, но игрок всё равно
-  // не допрыгивал, потому что к моменту, когда он долетал горизонтально
-  // до передней грани уступа, высоты уже не хватало — он врезался в торец.
-  // https://github.com/vladimirssss-git/pushok — devlog 2026-08-05.
-
-  it('прыжок с разбега (от дальнего края) долетает уже на нужной высоте', () => {
-    for (let i = 1; i < LEVEL_1_LEDGES.length; i += 1) {
-      const from = LEVEL_1_LEDGES[i - 1]!;
-      const to = LEVEL_1_LEDGES[i]!;
-      const stepUp = from.topY - to.topY;
-      const bestCaseGap = to.leftX - (from.leftX + from.tiles * GAME.tileSize);
-
-      expect(
-        isReachableAtGap(stepUp, bestCaseGap),
-        `уступ ${i} недостижим с разбега`,
-      ).toBe(true);
-    }
+describe('окно допустимой дистанции для подъёма (gapWindowForStepUp)', () => {
+  it('для подъёма 0 окно совпадает с [0, maxJumpDistance()]', () => {
+    const window = gapWindowForStepUp(0);
+    expect(window).not.toBeNull();
+    expect(window!.min).toBeCloseTo(0, 5);
+    expect(window!.max).toBeCloseTo(maxJumpDistance(), 5);
   });
 
-  it('прыжок без разбега (сразу после посадки у ближнего края) тоже долетает', () => {
-    for (let i = 1; i < LEVEL_1_LEDGES.length; i += 1) {
-      const from = LEVEL_1_LEDGES[i - 1]!;
-      const to = LEVEL_1_LEDGES[i]!;
-      const stepUp = from.topY - to.topY;
-
-      expect(
-        isReachableAtGap(stepUp, worstCaseGap()),
-        `уступ ${i} недостижим без разбега — игрок мог приземлиться у ближнего края`,
-      ).toBe(true);
-    }
+  it('нет окна для подъёма выше предельной высоты прыжка', () => {
+    expect(gapWindowForStepUp(maxJumpHeight() + 1)).toBeNull();
   });
 
-  it('первый прыжок (пол → уступ 1) от старта игрока не впритык', () => {
-    const first = LEVEL_1_LEDGES[0]!;
-    const stepUp = FLOOR_TOP_Y - first.topY;
-    const gapFromStart = first.leftX - PLAYER_START.x;
+  it('границы окна проходят isReachableAtGap, а чуть за ними — нет', () => {
+    const stepUp = safeStepUp();
+    const window = gapWindowForStepUp(stepUp)!;
+    expect(isReachableAtGap(stepUp, window.min)).toBe(true);
+    expect(isReachableAtGap(stepUp, window.max)).toBe(true);
+    expect(isReachableAtGap(stepUp, window.min - 5)).toBe(false);
+    expect(isReachableAtGap(stepUp, window.max + 5)).toBe(false);
+  });
 
-    expect(isReachableAtGap(stepUp, gapFromStart)).toBe(true);
+  it('для отрицательного подъёма (спуск) нижняя граница окна — ноль', () => {
+    const window = gapWindowForStepUp(-40)!;
+    expect(window.min).toBe(0);
   });
 });
