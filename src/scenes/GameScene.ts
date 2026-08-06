@@ -3,7 +3,7 @@ import {
   GAME, TEX, BALANCE,
   PLAYER_START, FLOOR_TOP_Y, MAX_LEVEL, DOG_PATROL, CUSTOM_LEVELS,
 } from '@/config';
-import type { Ledge } from '@/config/level';
+import type { Ledge, LevelData } from '@/config/level';
 import { Pushok } from '@/entities/Pushok';
 import { Dog } from '@/entities/Dog';
 import { applyDamage, isGameOver } from '@/systems/progression';
@@ -15,6 +15,13 @@ interface GameSceneData {
   level?: number;
   fish?: number;
   lives?: number;
+  /**
+   * Тест-заезд из редактора («Играть»): уровень приходит прямо из памяти
+   * редактора, а не из `CUSTOM_LEVELS`. В этом режиме сейв не трогается,
+   * ESC и финиш возвращают в редактор — иначе проверка уровня ломала бы
+   * реальный прогресс игрока.
+   */
+  testLevel?: LevelData;
 }
 
 export class GameScene extends Phaser.Scene {
@@ -33,6 +40,7 @@ export class GameScene extends Phaser.Scene {
   private lives: number = BALANCE.startingLives;
   private invulnerableUntilMs = 0;
   private levelCompleted = false;
+  private testLevel: LevelData | null = null;
 
   constructor() {
     super('Game');
@@ -44,12 +52,13 @@ export class GameScene extends Phaser.Scene {
     this.lives = data.lives ?? BALANCE.startingLives;
     this.invulnerableUntilMs = 0;
     this.levelCompleted = false;
+    this.testLevel = data.testLevel ?? null;
   }
 
   create(): void {
-    // Авторский уровень из редактора (?editor → «Экспорт» → вставлен в
-    // customLevels.ts) приоритетнее процедурной генерации для этого номера.
-    const custom = CUSTOM_LEVELS[this.level];
+    // Тест-заезд из редактора важнее всего, дальше — авторский уровень из
+    // customLevels.ts, и только потом процедурная генерация.
+    const custom = this.testLevel ?? CUSTOM_LEVELS[this.level];
     const generated = custom ?? generateLevel(this.level);
     const dogPatrol = custom?.dogPatrol ?? DOG_PATROL;
 
@@ -78,6 +87,9 @@ export class GameScene extends Phaser.Scene {
       right: kb.addKey(Phaser.Input.Keyboard.KeyCodes.D),
       jump: kb.addKey(Phaser.Input.Keyboard.KeyCodes.W),
     };
+    if (this.testLevel) {
+      kb.on('keydown-ESC', () => this.backToEditor('quit'));
+    }
 
     this.hud = this.add.text(8, 8, '', {
       fontFamily: 'monospace', fontSize: '14px', color: '#ffffff',
@@ -140,9 +152,18 @@ export class GameScene extends Phaser.Scene {
     this.persist();
   }
 
+  private backToEditor(result: 'win' | 'quit'): void {
+    this.scene.start('Editor', { level: this.level, playResult: result });
+  }
+
   private completeLevel(): void {
     if (this.levelCompleted) return;
     this.levelCompleted = true;
+
+    if (this.testLevel) {
+      this.backToEditor('win');
+      return;
+    }
 
     if (this.level >= MAX_LEVEL) {
       const save = loadSave();
@@ -164,6 +185,11 @@ export class GameScene extends Phaser.Scene {
       this.updateHud();
     }
     if (isGameOver(this.lives)) {
+      // В тест-заезде смерть — не конец игры, а повод перезапустить пробу.
+      if (this.testLevel) {
+        this.scene.start('Game', { level: this.level, testLevel: this.testLevel });
+        return;
+      }
       this.persist();
       // Рестарт после смерти — с того же уровня и с сохранёнными рыбками
       // (см. «Кор-луп» в docs/01 Design), но со свежими жизнями.
@@ -172,10 +198,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateHud(): void {
-    this.hud.setText(`Уровень: ${this.level}   Рыбки: ${this.fish}   Жизни: ${this.lives}`);
+    const base = `Уровень: ${this.level}   Рыбки: ${this.fish}   Жизни: ${this.lives}`;
+    this.hud.setText(this.testLevel ? `${base}   [проба · ESC — в редактор]` : base);
   }
 
   private persist(): void {
+    if (this.testLevel) return; // проба из редактора не трогает прогресс игрока
     const save = loadSave();
     writeSave({ ...save, level: this.level, fish: this.fish, lives: this.lives });
   }
