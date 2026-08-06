@@ -18,11 +18,11 @@
       "Bash(git pull:*)",
       "Bash(git push origin:*)",
       "Bash(gh pr:*)",
-      "Bash(gh run:*)"
+      "Bash(gh run:*)",
+      "Bash(gh workflow:*)"
     ],
     "deny": [
       "Bash(git push --force:*)",
-      "Bash(git push origin main:*)",
       "Bash(git reset --hard:*)",
       "Bash(rm -rf:*)",
       "Read(./.env)",
