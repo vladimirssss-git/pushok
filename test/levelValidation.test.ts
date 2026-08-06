@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { validateLevel, snapToGrid, ledgesTooClose } from '@/systems/levelValidation';
+import { validateLevel, snapToGrid, ledgesTooClose, hasHeadroomBelow, isLedgeReachableFrom } from '@/systems/levelValidation';
 import { generateLevel } from '@/systems/levelGenerator';
-import { GAME, PLAYER_START, FLOOR_TOP_Y } from '@/config';
+import { safeStepUp, gapWindowForStepUp } from '@/systems/jumpGeometry';
+import { GAME, PLAYER_START, FLOOR_TOP_Y, PLAYER } from '@/config';
 import type { Ledge } from '@/config/level';
 
 function seeded(seed: number): () => number {
@@ -44,11 +45,19 @@ describe('ledgesTooClose', () => {
 });
 
 describe('validateLevel', () => {
-  it('уровень из процедурного генератора всегда проходит валидацию', () => {
+  it('уровень из процедурного генератора всегда допрыгиваем, без пересечений и в границах экрана', () => {
+    // Генератор строит одну цепочку прыжков (jump-path), а не структуру для
+    // хождения понизу — запас по высоте под уступом (noHeadroom) для него
+    // не гарантирован и намеренно не проверяется здесь. Это дополнительная
+    // проверка специально для редактора (ручная расстановка может создать
+    // проходы понизу, которые должны оставаться проходимыми).
     for (const seed of [1, 2, 3, 42]) {
       const { ledges } = generateLevel(2, seeded(seed));
       const result = validateLevel(ledges, PLAYER_START, FLOOR_TOP_Y);
-      expect(result.ok, `seed=${seed}: ${JSON.stringify(result)}`).toBe(true);
+      const msg = `seed=${seed}: ${JSON.stringify(result)}`;
+      expect(result.unreachable, msg).toEqual([]);
+      expect(result.tooClose, msg).toEqual([]);
+      expect(result.outOfBounds, msg).toEqual([]);
     }
   });
 
@@ -79,5 +88,63 @@ describe('validateLevel', () => {
   it('пустой уровень (без уступов) проходит валидацию', () => {
     const result = validateLevel([], PLAYER_START, FLOOR_TOP_Y);
     expect(result.ok).toBe(true);
+  });
+
+  it('находит уступ, под которым герою не хватает роста пройти', () => {
+    const low: Ledge = { leftX: 100, topY: FLOOR_TOP_Y - PLAYER.height + 5, tiles: 2 };
+    const result = validateLevel([low], PLAYER_START, FLOOR_TOP_Y);
+    expect(result.noHeadroom).toContain(0);
+    expect(result.ok).toBe(false);
+  });
+
+  it('не жалуется на высоту, если запаса ровно достаточно', () => {
+    const high: Ledge = { leftX: 100, topY: FLOOR_TOP_Y - PLAYER.height - GAME.tileSize, tiles: 2 };
+    const result = validateLevel([high], PLAYER_START, FLOOR_TOP_Y);
+    expect(result.noHeadroom).not.toContain(0);
+  });
+});
+
+describe('hasHeadroomBelow', () => {
+  it('хватает места над полом, если уступ высоко', () => {
+    const ledge: Ledge = { leftX: 100, topY: FLOOR_TOP_Y - 100, tiles: 2 };
+    expect(hasHeadroomBelow(ledge, [], FLOOR_TOP_Y)).toBe(true);
+  });
+
+  it('не хватает места, если уступ сидит прямо над полом', () => {
+    const ledge: Ledge = { leftX: 100, topY: FLOOR_TOP_Y - 5, tiles: 2 };
+    expect(hasHeadroomBelow(ledge, [], FLOOR_TOP_Y)).toBe(false);
+  });
+
+  it('учитывает другой уступ снизу, а не только пол', () => {
+    const upper: Ledge = { leftX: 100, topY: 200, tiles: 2 };
+    const lowerClose: Ledge = { leftX: 100, topY: 200 + GAME.tileSize + 5, tiles: 2 };
+    expect(hasHeadroomBelow(upper, [upper, lowerClose], FLOOR_TOP_Y)).toBe(false);
+  });
+
+  it('не мешает уступ снизу, который не пересекается по X', () => {
+    const upper: Ledge = { leftX: 100, topY: 200, tiles: 2 };
+    const lowerFarAway: Ledge = { leftX: 500, topY: 200 + GAME.tileSize + 5, tiles: 2 };
+    expect(hasHeadroomBelow(upper, [upper, lowerFarAway], FLOOR_TOP_Y)).toBe(true);
+  });
+});
+
+describe('isLedgeReachableFrom', () => {
+  it('достижим уступ в пределах безопасного прыжка от старта героя', () => {
+    const stepUp = safeStepUp();
+    const window = gapWindowForStepUp(stepUp)!;
+    const gap = (window.min + window.max) / 2;
+    const candidate: Ledge = { leftX: PLAYER_START.x + gap, topY: FLOOR_TOP_Y - stepUp, tiles: 2 };
+    expect(isLedgeReachableFrom(candidate, { leftX: PLAYER_START.x, topY: FLOOR_TOP_Y })).toBe(true);
+  });
+
+  it('недостижим уступ слишком высоко и далеко', () => {
+    const candidate: Ledge = { leftX: PLAYER_START.x + 400, topY: FLOOR_TOP_Y - 300, tiles: 2 };
+    expect(isLedgeReachableFrom(candidate, { leftX: PLAYER_START.x, topY: FLOOR_TOP_Y })).toBe(false);
+  });
+
+  it('работает симметрично, когда сосед левее кандидата', () => {
+    const from = { leftX: 400, topY: FLOOR_TOP_Y, tiles: 2 };
+    const candidate: Ledge = { leftX: 300, topY: FLOOR_TOP_Y, tiles: 2 };
+    expect(isLedgeReachableFrom(candidate, from)).toBe(true);
   });
 });

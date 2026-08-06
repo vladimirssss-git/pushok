@@ -20,6 +20,7 @@ export class PreloadScene extends Phaser.Scene {
   create(): void {
     this.makePlaceholder(TEX.ground, GAME.tileSize, GAME.tileSize, 0x3d5a45);
     this.makePlaceholder(TEX.exit, GAME.tileSize, Math.round(GAME.tileSize * 1.5), 0xffd166);
+    this.makeLedgePlaceholder(TEX.ledge);
 
     // Конструктор уровней — dev-инструмент, не для игроков: только по ?editor в URL.
     const isEditor = new URLSearchParams(window.location.search).has('editor');
@@ -34,6 +35,24 @@ export class PreloadScene extends Phaser.Scene {
     g.lineStyle(2, 0x000000, 0.35);
     g.strokeRect(0, 0, w, h);
     g.generateTexture(key, w, h);
+    g.destroy();
+  }
+
+  /**
+   * Уступ редактора — цельный спрайт шириной в 2 тайла (а не два отдельных
+   * `TEX.ground`), чтобы клик/драг всегда попадал в один надёжный
+   * `Image.setInteractive()` без кастомной hit-area на контейнере.
+   */
+  private makeLedgePlaceholder(key: string): void {
+    if (this.textures.exists(key)) return;
+    const t = GAME.tileSize;
+    const g = this.make.graphics({ x: 0, y: 0 }, false);
+    g.fillStyle(0x3d5a45, 1);
+    g.fillRect(0, 0, t * 2, t);
+    g.lineStyle(2, 0x000000, 0.35);
+    g.strokeRect(0, 0, t, t);
+    g.strokeRect(t, 0, t, t);
+    g.generateTexture(key, t * 2, t);
     g.destroy();
   }
 }

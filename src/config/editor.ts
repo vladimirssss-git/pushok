@@ -13,11 +13,13 @@ export const EDITOR = {
   gridAlpha: 0.5,
   validColor: 0x4caf50,
   invalidColor: 0xe05252,
+  headroomColor: 0xe0a552,
   selectedColor: 0xffd479,
   dogHandleRadius: 6,
   dogBandColor: 0xff8b8b,
   dogBandAlpha: 0.25,
   statusY: GAME.height - 14,
+  previewLineWidth: 2,
 } as const;
 
 export const EDITOR_DRAFT_STORAGE_KEY = 'pushok:editor-draft';

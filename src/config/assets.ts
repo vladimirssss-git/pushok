@@ -9,6 +9,8 @@ export const TEX = {
   ground: 'ground',
   dog: 'dog',
   exit: 'exit',
+  /** Плейсхолдер уступа для редактора уровней (`?editor`) — один спрайт вместо двух тайлов, надёжнее кликается/тащится. */
+  ledge: 'ledge',
 } as const;
 
 export const ANIM = {
