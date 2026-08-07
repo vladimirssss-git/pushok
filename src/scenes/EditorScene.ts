@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
 import {
   GAME, TEX, PLAYER, FLOOR_TOP_Y, PLAYER_START, LEDGE_TILES, DOG_PATROL, MAX_LEVEL,
-  CUSTOM_LEVELS, EDITOR, EDITOR_DRAFT_STORAGE_KEY,
+  CUSTOM_LEVELS, EDITOR, EDITOR_DRAFT_STORAGE_KEY, EDITOR_SAVE_ENDPOINT,
 } from '@/config';
 import type { Ledge, LevelData, DogPatrolZone } from '@/config/level';
 import { validateLevel, snapToGrid, ledgesTooClose, hasHeadroomBelow, isLedgeReachableFrom } from '@/systems/levelValidation';
+import { renderCustomLevelsFile } from '@/systems/levelsFile';
 
 const T = GAME.tileSize;
 const LEDGE_WIDTH = LEDGE_TILES * T;
@@ -108,7 +109,7 @@ export class EditorScene extends Phaser.Scene {
 
     if (this.returnedFrom === 'win') this.showToast('Уровень пройден — выход достижим', 2500);
     else if (this.returnedFrom === 'quit') this.showToast('Вернулись в редактор', 1500);
-    else this.showToast('Тащи уступ на сетку → «Играть», чтобы проверить руками. «Скачать» — сохранить уровень в репозиторий', 4500);
+    else this.showToast('Тащи уступ на сетку → «Играть», чтобы проверить руками → «Сохранить», чтобы уровень стал дефолтным для всех', 4500);
   }
 
   private drawGrid(): void {
@@ -147,7 +148,7 @@ export class EditorScene extends Phaser.Scene {
     let bx = EDITOR.paletteStartX + paletteDefs.length * EDITOR.paletteSpacingX + 10;
     bx = this.addButton(bx, 'Играть', () => this.playCurrentLevel(), 48);
     bx = this.addButton(bx, 'Проверить', () => this.runValidation(true));
-    bx = this.addButton(bx, 'Скачать', () => this.downloadLevels(), 62);
+    bx = this.addButton(bx, 'Сохранить', () => void this.saveLevels());
     bx = this.addButton(bx, 'Очистить', () => this.clearBoard());
 
     this.addButton(bx, '◀', () => this.loadLevel(this.level - 1), 22);
@@ -522,41 +523,57 @@ export class EditorScene extends Phaser.Scene {
   }
 
   /**
-   * Собирает `customLevels.ts` целиком (все уровни с черновиком в
-   * localStorage + текущий уровень в памяти прямо сейчас) и скачивает как
-   * файл — самый понятный «сохранить», который есть без бэкенда: просто
-   * заменить им `src/config/customLevels.ts` в репозитории.
+   * Все уровни, которые есть прямо сейчас: уже вкомпилированные
+   * `CUSTOM_LEVELS` + черновики из `localStorage` (черновик свежее).
+   * Пустые заготовки без уступов или без выхода отбрасываются — иначе
+   * сохранение сделало бы дефолтным для игроков заведомо непроходимый уровень.
    */
-  private downloadLevels(): void {
+  private collectLevels(): Partial<Record<number, LevelData>> {
     this.saveDraft();
-    const drafts = this.loadAllDrafts();
-    const merged: Partial<Record<number, LevelData>> = { ...CUSTOM_LEVELS, ...drafts };
+    const merged: Partial<Record<number, LevelData>> = { ...CUSTOM_LEVELS, ...this.loadAllDrafts() };
+    const out: Partial<Record<number, LevelData>> = {};
+    for (const [lvl, data] of Object.entries(merged)) {
+      if (this.hasContent(data)) out[Number(lvl)] = data;
+    }
+    return out;
+  }
 
-    const entries = Object.entries(merged)
-      .filter((entry): entry is [string, LevelData] => this.hasContent(entry[1]))
-      .sort(([a], [b]) => Number(a) - Number(b));
-
-    if (entries.length === 0) {
-      this.showToast('Нечего скачивать — нужен хотя бы один уступ и выход на каком-нибудь уровне');
+  /**
+   * «Сохранить» = сделать уровень дефолтным для всех игроков. В dev пишет
+   * прямо в `src/config/customLevels.ts` через эндпоинт дев-сервера
+   * (см. плагин `pushok-level-saver` в `vite.config.ts`) — уровень попадает
+   * в исходники репозитория, и после деплоя его получают все.
+   *
+   * В прод-сборке (игра на GitHub Pages) эндпоинта нет: писать в репозиторий
+   * из браузера некуда, поэтому там честный откат на скачивание файла.
+   */
+  private async saveLevels(): Promise<void> {
+    const levels = this.collectLevels();
+    const numbers = Object.keys(levels).join(', ');
+    if (numbers.length === 0) {
+      this.showToast('Нечего сохранять — нужен хотя бы один уступ и выход');
       return;
     }
 
-    const body = entries
-      .map(([lvl, data]) => `  ${lvl}: ${JSON.stringify(data, null, 2).replace(/\n/g, '\n  ')},`)
-      .join('\n');
+    try {
+      const res = await fetch(EDITOR_SAVE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(levels),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      this.showToast(`Уровни ${numbers} сохранены в customLevels.ts — дефолтные для всех после деплоя`, 4000);
+    } catch (err) {
+      this.downloadLevelsFile(levels);
+      // eslint-disable-next-line no-console
+      console.warn('Сохранение через дев-сервер не сработало, скачиваю файл:', err);
+      this.showToast(`Дев-сервер недоступен — скачал customLevels.ts (уровни ${numbers}), положи его в src/config/`, 5000);
+    }
+  }
 
-    const fileContent = `import type { LevelData } from './level';
-
-/**
- * Уровни, собранные вручную в редакторе (\`?editor\` → «Скачать»).
- * Файл сгенерирован автоматически — заменить им src/config/customLevels.ts.
- */
-export const CUSTOM_LEVELS: Partial<Record<number, LevelData>> = {
-${body}
-};
-`;
-
-    const blob = new Blob([fileContent], { type: 'text/plain' });
+  /** Откат для прод-сборки: тот же файл, но пользователю в «Загрузки». */
+  private downloadLevelsFile(levels: Partial<Record<number, LevelData>>): void {
+    const blob = new Blob([renderCustomLevelsFile(levels)], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -565,10 +582,6 @@ ${body}
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-
-    // eslint-disable-next-line no-console
-    console.log(`Скачан customLevels.ts (уровни: ${entries.map(([lvl]) => lvl).join(', ')}). Замени им src/config/customLevels.ts.`);
-    this.showToast(`Скачан customLevels.ts (уровни ${entries.map(([lvl]) => lvl).join(', ')}) — замени файл в src/config/`, 4000);
   }
 
   /**

@@ -23,3 +23,11 @@ export const EDITOR = {
 } as const;
 
 export const EDITOR_DRAFT_STORAGE_KEY = 'pushok:editor-draft';
+
+/**
+ * Куда «Сохранить» кладёт уровень, чтобы он стал дефолтным для всех
+ * игроков: эндпоинт dev-сервера, который пишет `src/config/customLevels.ts`
+ * (плагин `pushok-level-saver` в `vite.config.ts`). В прод-сборке такого
+ * эндпоинта нет — редактор откатывается на скачивание файла.
+ */
+export const EDITOR_SAVE_ENDPOINT = '/__save-levels';
