@@ -21,6 +21,7 @@ export class PreloadScene extends Phaser.Scene {
     this.makePlaceholder(TEX.ground, GAME.tileSize, GAME.tileSize, 0x3d5a45);
     this.makePlaceholder(TEX.exit, GAME.tileSize, Math.round(GAME.tileSize * 1.5), 0xffd166);
     this.makeLedgePlaceholder(TEX.ledge);
+    this.makeSpikesPlaceholder(TEX.spikes);
 
     // Конструктор уровней — dev-инструмент, не для игроков: только по ?editor в URL.
     const isEditor = new URLSearchParams(window.location.search).has('editor');
@@ -53,6 +54,26 @@ export class PreloadScene extends Phaser.Scene {
     g.strokeRect(0, 0, t, t);
     g.strokeRect(t, 0, t, t);
     g.generateTexture(key, t * 2, t);
+    g.destroy();
+  }
+
+  /**
+   * Шипы — треугольники в тайл шириной и в полтайла высотой. Рисуются
+   * остриями вверх и ставятся с origin (0.5, 1), то есть основанием на
+   * поверхность: и в редакторе, и в игре координата шипов — их нижняя грань.
+   */
+  private makeSpikesPlaceholder(key: string): void {
+    if (this.textures.exists(key)) return;
+    const w = GAME.tileSize;
+    const h = GAME.tileSize / 2;
+    const teeth = 4;
+    const step = w / teeth;
+    const g = this.make.graphics({ x: 0, y: 0 }, false);
+    g.fillStyle(0xc94f4f, 1);
+    for (let i = 0; i < teeth; i += 1) {
+      g.fillTriangle(i * step, h, i * step + step / 2, 0, (i + 1) * step, h);
+    }
+    g.generateTexture(key, w, h);
     g.destroy();
   }
 }

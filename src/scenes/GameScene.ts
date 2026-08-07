@@ -76,6 +76,9 @@ export class GameScene extends Phaser.Scene {
     this.exit.refreshBody();
     this.physics.add.overlap(this.pushok, this.exit, () => this.completeLevel());
 
+    // Шипы бывают только у авторских уровней из редактора — генератор их не ставит.
+    this.spawnSpikes(custom?.spikes ?? []);
+
     this.dog = new Dog(this, dogPatrol.maxX, dogPatrol.y, dogPatrol.minX, dogPatrol.maxX);
     this.physics.add.collider(this.dog, this.platforms);
     this.physics.add.overlap(this.pushok, this.dog, (_p, _d) => this.hurt(this.time.now));
@@ -137,6 +140,17 @@ export class GameScene extends Phaser.Scene {
         this.platforms.create(ledge.leftX + i * t + t / 2, ledge.topY + t / 2, TEX.ground);
       }
     }
+  }
+
+  /** Урон при касании — та же `hurt()`, что и от собаки: одна опасность, один эффект. */
+  private spawnSpikes(spots: ReadonlyArray<{ x: number; y: number }>): void {
+    if (spots.length === 0) return;
+    const group = this.physics.add.staticGroup();
+    for (const spot of spots) {
+      const spike = group.create(spot.x, spot.y, TEX.spikes) as Phaser.Physics.Arcade.Sprite;
+      spike.setOrigin(0.5, 1).refreshBody();
+    }
+    this.physics.add.overlap(this.pushok, group, () => this.hurt(this.time.now));
   }
 
   private spawnFish(spots: ReadonlyArray<{ x: number; y: number }>): void {

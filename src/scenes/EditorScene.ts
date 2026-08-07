@@ -37,8 +37,12 @@ interface PlacedPoint {
 type Selection =
   | { kind: 'ledge'; ledge: PlacedLedge }
   | { kind: 'fish'; point: PlacedPoint }
+  | { kind: 'spike'; point: PlacedPoint }
   | { kind: 'exit' }
   | null;
+
+/** Что кладёт «штамп» палитры. */
+type StampKind = 'ledge' | 'fish' | 'spike' | 'exit';
 
 interface EditorSceneData {
   level?: number;
@@ -59,6 +63,7 @@ export class EditorScene extends Phaser.Scene {
   private level = 1;
   private ledges: PlacedLedge[] = [];
   private fishList: PlacedPoint[] = [];
+  private spikeList: PlacedPoint[] = [];
   private exitPoint: PlacedPoint | null = null;
   private dogPatrol: DogPatrolZone = { ...DOG_PATROL };
 
@@ -128,9 +133,10 @@ export class EditorScene extends Phaser.Scene {
   private buildToolbar(): void {
     this.add.rectangle(0, 0, GAME.width, EDITOR.toolbarHeight, 0x11131f).setOrigin(0, 0).setDepth(20);
 
-    const paletteDefs: Array<{ texture: string; kind: 'ledge' | 'fish' | 'exit' }> = [
+    const paletteDefs: Array<{ texture: string; kind: StampKind }> = [
       { texture: TEX.ledge, kind: 'ledge' },
       { texture: TEX.fish, kind: 'fish' },
+      { texture: TEX.spikes, kind: 'spike' },
       { texture: TEX.exit, kind: 'exit' },
     ];
     paletteDefs.forEach((def, i) => {
@@ -163,7 +169,7 @@ export class EditorScene extends Phaser.Scene {
     return x + width + EDITOR.buttonSpacingX;
   }
 
-  private setupPaletteStamp(x: number, y: number, texture: string, kind: 'ledge' | 'fish' | 'exit'): void {
+  private setupPaletteStamp(x: number, y: number, texture: string, kind: StampKind): void {
     const icon = this.add.image(x, y, texture).setScale(0.6).setDepth(21).setInteractive({ useHandCursor: true });
     this.input.setDraggable(icon);
 
@@ -178,8 +184,11 @@ export class EditorScene extends Phaser.Scene {
       } else if (kind === 'fish') {
         const spot = this.snapFish(icon.x, icon.y);
         this.addFish(spot.x, spot.y);
+      } else if (kind === 'spike') {
+        const spot = this.snapBottomToSurface(icon.x, icon.y);
+        this.addSpike(spot.x, spot.y);
       } else {
-        const spot = this.snapExitBottom(icon.x, icon.y);
+        const spot = this.snapBottomToSurface(icon.x, icon.y);
         this.setExit(spot.x, spot.y);
       }
       icon.setPosition(x, y);
@@ -240,10 +249,11 @@ export class EditorScene extends Phaser.Scene {
   }
 
   /**
-   * Выход рисуется с origin (0.5, 1), поэтому снапится его нижняя грань:
-   * на верх уступа под курсором, а в самом нижнем ряду — на пол.
+   * Выход и шипы рисуются с origin (0.5, 1) — они стоят на поверхности,
+   * поэтому снапится их нижняя грань: на верх уступа под курсором, а в
+   * самом нижнем ряду — на пол.
    */
-  private snapExitBottom(x: number, y: number): { x: number; y: number } {
+  private snapBottomToSurface(x: number, y: number): { x: number; y: number } {
     const { col, row } = this.cellUnder(x, y);
     const ledge = this.ledgeAtCell(col, row);
     const bottom = ledge ? ledge.topY : row === LAST_ROW ? FLOOR_TOP_Y : (row + 1) * T;
@@ -333,6 +343,37 @@ export class EditorScene extends Phaser.Scene {
   }
 
   /**
+   * Шипы — опасность, а не платформа: проверка проходимости
+   * (`runValidation`) их не учитывает, поэтому расставлять их можно и в
+   * заведомо смертельные места. Координата — нижняя грань, как у выхода.
+   * @param y — низ спрайта: шипы стоят на уступе или на полу.
+   */
+  private addSpike(x: number, y: number): PlacedPoint {
+    const sprite = this.add.image(x, y, TEX.spikes).setOrigin(0.5, 1).setDepth(6)
+      .setInteractive({ useHandCursor: true });
+    this.input.setDraggable(sprite);
+    const placed: PlacedPoint = { x, y, sprite };
+
+    sprite.on('pointerdown', () => this.select({ kind: 'spike', point: placed }));
+    sprite.on('drag', (_p: Phaser.Input.Pointer, dragX: number, dragY: number) => {
+      sprite.setPosition(dragX, dragY);
+      placed.x = dragX;
+      placed.y = dragY;
+    });
+    sprite.on('dragend', () => {
+      // Курсор держит шипы за низ спрайта — клетку ищем чуть выше этой грани.
+      const spot = this.snapBottomToSurface(sprite.x, sprite.y - T / 4);
+      sprite.setPosition(spot.x, spot.y);
+      placed.x = spot.x;
+      placed.y = spot.y;
+      this.saveDraft();
+    });
+
+    this.spikeList.push(placed);
+    return placed;
+  }
+
+  /**
    * @param y — нижняя грань выхода, ровно то, что уходит в `LevelData.exit.y`
    * и что `GameScene` рисует с тем же origin (0.5, 1). Раньше сохранялось
    * `y + T`, и в игре выход оказывался на тайл ниже, чем в редакторе.
@@ -354,7 +395,7 @@ export class EditorScene extends Phaser.Scene {
     });
     sprite.on('dragend', () => {
       // Курсор держит выход за низ спрайта — клетку ищем чуть выше этой грани.
-      const spot = this.snapExitBottom(sprite.x, sprite.y - T / 2);
+      const spot = this.snapBottomToSurface(sprite.x, sprite.y - T / 2);
       sprite.setPosition(spot.x, spot.y);
       placed.x = spot.x;
       placed.y = spot.y;
@@ -401,7 +442,7 @@ export class EditorScene extends Phaser.Scene {
     this.selected = selection;
     if (selection?.kind === 'ledge') {
       selection.ledge.image.setTint(EDITOR.selectedColor);
-    } else if (selection?.kind === 'fish') {
+    } else if (selection?.kind === 'fish' || selection?.kind === 'spike') {
       selection.point.sprite.setTint(EDITOR.selectedColor);
     } else if (selection?.kind === 'exit' && this.exitPoint) {
       this.exitPoint.sprite.setTint(EDITOR.selectedColor);
@@ -411,7 +452,7 @@ export class EditorScene extends Phaser.Scene {
   private clearSelectionTint(): void {
     if (this.selected?.kind === 'ledge') {
       this.selected.ledge.image.clearTint();
-    } else if (this.selected?.kind === 'fish') {
+    } else if (this.selected?.kind === 'fish' || this.selected?.kind === 'spike') {
       this.selected.point.sprite.clearTint();
     } else if (this.selected?.kind === 'exit' && this.exitPoint) {
       this.exitPoint.sprite.clearTint();
@@ -426,6 +467,9 @@ export class EditorScene extends Phaser.Scene {
     } else if (this.selected.kind === 'fish') {
       this.selected.point.sprite.destroy();
       this.fishList = this.fishList.filter((f) => f !== (this.selected as { kind: 'fish'; point: PlacedPoint }).point);
+    } else if (this.selected.kind === 'spike') {
+      this.selected.point.sprite.destroy();
+      this.spikeList = this.spikeList.filter((s) => s !== (this.selected as { kind: 'spike'; point: PlacedPoint }).point);
     } else if (this.selected.kind === 'exit') {
       this.exitPoint?.sprite.destroy();
       this.exitPoint = null;
@@ -467,6 +511,7 @@ export class EditorScene extends Phaser.Scene {
     return {
       ledges: this.ledges.map((l) => ({ leftX: l.leftX, topY: l.topY, tiles: l.tiles })),
       fish: this.fishList.map((f) => ({ x: f.x, y: f.y })),
+      spikes: this.spikeList.map((s) => ({ x: s.x, y: s.y })),
       exit: this.exitPoint ? { x: this.exitPoint.x, y: this.exitPoint.y } : { x: 0, y: 0 },
       dogPatrol: { ...this.dogPatrol },
     };
@@ -553,9 +598,11 @@ ${body}
   private clearBoard(): void {
     this.ledges.forEach((l) => l.image.destroy());
     this.fishList.forEach((f) => f.sprite.destroy());
+    this.spikeList.forEach((s) => s.sprite.destroy());
     this.exitPoint?.sprite.destroy();
     this.ledges = [];
     this.fishList = [];
+    this.spikeList = [];
     this.exitPoint = null;
     this.dogPatrol = { ...DOG_PATROL };
     this.dogHandleMin.setPosition(this.dogPatrol.minX, FLOOR_TOP_Y);
@@ -569,6 +616,7 @@ ${body}
   private loadLevelData(data: LevelData): void {
     for (const ledge of data.ledges) this.addLedge(ledge.leftX, ledge.topY);
     for (const fish of data.fish) this.addFish(fish.x, fish.y);
+    for (const spike of data.spikes ?? []) this.addSpike(spike.x, spike.y);
     if (data.exit.x !== 0 || data.exit.y !== 0) this.setExit(data.exit.x, data.exit.y);
     this.dogPatrol = { ...data.dogPatrol };
     this.dogHandleMin.setPosition(this.dogPatrol.minX, FLOOR_TOP_Y);
@@ -596,16 +644,18 @@ ${body}
   }
 
   private loadLevel(n: number): void {
-    if (this.ledges.length || this.fishList.length || this.exitPoint) this.saveDraft();
+    if (this.ledges.length || this.fishList.length || this.spikeList.length || this.exitPoint) this.saveDraft();
 
     this.level = Phaser.Math.Clamp(n, 1, MAX_LEVEL);
     this.levelLabel?.setText(`Ур. ${this.level}`);
 
     this.ledges.forEach((l) => l.image.destroy());
     this.fishList.forEach((f) => f.sprite.destroy());
+    this.spikeList.forEach((s) => s.sprite.destroy());
     this.exitPoint?.sprite.destroy();
     this.ledges = [];
     this.fishList = [];
+    this.spikeList = [];
     this.exitPoint = null;
     this.selected = null;
 
