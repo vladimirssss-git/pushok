@@ -1,32 +1,61 @@
 import Phaser from 'phaser';
-import { TOUCH_CONTROLS, TOUCH_BUTTON_POSITIONS } from '@/config';
+import { GAME, TOUCH_CONTROLS, TOUCH_HINT_POSITIONS, TOUCH_STICK } from '@/config';
+import {
+  knobOffset,
+  recenterOrigin,
+  stickDirection,
+  zoneOf,
+  type MoveDirection,
+} from './touchStick';
 
 /**
- * Виртуальный геймпад для тач-устройств: две кнопки движения + прыжок.
- * Рисует круги средствами Phaser (без ассетов — тот же подход,
- * что и у плейсхолдер-спрайтов в PreloadScene) и держит своё состояние
- * в том же формате, что читает `Pushok.handleInput` (direction, jumpPressed).
+ * Тач-управление: левая часть экрана — плавающий стик, который рождается там,
+ * где опустился палец; правая — прыжок тапом в любом месте. Целиться в кнопку
+ * не нужно, поэтому промахнуться нечем — это и было главной претензией к
+ * прежним трём круглым кнопкам.
+ *
+ * Слушаем указатели сцены, а не игровые объекты: событий объекта не хватает,
+ * чтобы вести палец между направлениями без отрыва, и они пропускают
+ * отпускание за пределами кнопки — кнопка залипала.
+ *
+ * Состояние отдаётся в том же формате, что читает `Pushok.handleInput`
+ * (`direction`, `jumpPressed`).
  */
 export class TouchControls {
-  direction: -1 | 0 | 1 = 0;
+  direction: MoveDirection = 0;
 
   private jumpJustPressed = false;
-  private leftDown = false;
-  private rightDown = false;
+  private stickPointerId: number | null = null;
+  private originX = 0;
+  private readonly base: Phaser.GameObjects.Arc;
+  private readonly knob: Phaser.GameObjects.Arc;
+  private readonly hints: (Phaser.GameObjects.Arc | Phaser.GameObjects.Text)[] = [];
 
   constructor(scene: Phaser.Scene) {
-    this.createButton(scene, TOUCH_BUTTON_POSITIONS.left, '◀', {
-      onDown: () => { this.leftDown = true; this.updateDirection(); },
-      onUp: () => { this.leftDown = false; this.updateDirection(); },
-    });
-    this.createButton(scene, TOUCH_BUTTON_POSITIONS.right, '▶', {
-      onDown: () => { this.rightDown = true; this.updateDirection(); },
-      onUp: () => { this.rightDown = false; this.updateDirection(); },
-    });
-    this.createButton(scene, TOUCH_BUTTON_POSITIONS.jump, '▲', {
-      onDown: () => { this.jumpJustPressed = true; },
-      onUp: () => {},
-    });
+    this.createHints(scene);
+
+    this.base = scene.add
+      .circle(0, 0, TOUCH_STICK.baseRadius, TOUCH_CONTROLS.color, TOUCH_STICK.alphaBase)
+      .setScrollFactor(0)
+      .setDepth(20)
+      .setVisible(false);
+    this.knob = scene.add
+      .circle(0, 0, TOUCH_STICK.knobRadius, TOUCH_CONTROLS.color, TOUCH_STICK.alphaKnob)
+      .setScrollFactor(0)
+      .setDepth(21)
+      .setVisible(false);
+
+    scene.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
+    scene.input.on(Phaser.Input.Events.POINTER_MOVE, this.onPointerMove, this);
+    scene.input.on(Phaser.Input.Events.POINTER_UP, this.onPointerUp, this);
+    scene.input.on(Phaser.Input.Events.POINTER_UP_OUTSIDE, this.onPointerUp, this);
+
+    // Свернули вкладку с зажатым пальцем — иначе Пушок убежит сам.
+    scene.game.events.on(Phaser.Core.Events.BLUR, this.release, this);
+
+    // GameScene пересоздаётся после смерти: без отписки слушатели копятся,
+    // и один тап начинает считаться за несколько прыжков.
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.unsubscribe(scene));
   }
 
   /** Прыжок — событие «нажали в этом кадре», как JustDown у клавиатуры. */
@@ -36,44 +65,81 @@ export class TouchControls {
     return pressed;
   }
 
-  /** Есть ли на устройстве тач-ввод — показывать кнопки только там. */
+  /** Есть ли на устройстве тач-ввод — показывать управление только там. */
   static isTouchDevice(scene: Phaser.Scene): boolean {
     return scene.sys.game.device.input.touch;
   }
 
-  private updateDirection(): void {
-    if (this.leftDown && !this.rightDown) this.direction = -1;
-    else if (this.rightDown && !this.leftDown) this.direction = 1;
-    else this.direction = 0;
+  private onPointerDown(pointer: Phaser.Input.Pointer): void {
+    this.hideHints();
+
+    if (zoneOf(pointer.x, GAME.width, TOUCH_STICK.moveZoneWidthRatio) === 'jump') {
+      this.jumpJustPressed = true;
+      if (TOUCH_STICK.hapticJumpMs > 0) navigator.vibrate?.(TOUCH_STICK.hapticJumpMs);
+      return;
+    }
+
+    // Второй палец в зоне движения игнорируем: стик один.
+    if (this.stickPointerId !== null) return;
+
+    this.stickPointerId = pointer.id;
+    this.originX = pointer.x;
+    this.direction = 0;
+    this.base.setPosition(pointer.x, pointer.y).setVisible(true);
+    this.knob.setPosition(pointer.x, pointer.y).setVisible(true);
   }
 
-  private createButton(
-    scene: Phaser.Scene,
-    pos: { x: number; y: number },
-    label: string,
-    handlers: { onDown: () => void; onUp: () => void },
-  ): void {
-    const circle = scene.add.circle(pos.x, pos.y, TOUCH_CONTROLS.radius, TOUCH_CONTROLS.color, TOUCH_CONTROLS.alphaIdle)
-      .setScrollFactor(0)
-      .setDepth(20)
-      .setInteractive({ useHandCursor: false });
+  private onPointerMove(pointer: Phaser.Input.Pointer): void {
+    if (pointer.id !== this.stickPointerId) return;
 
-    scene.add.text(pos.x, pos.y, label, { fontFamily: 'monospace', fontSize: '20px', color: '#1b1b2a' })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(21);
+    this.originX = recenterOrigin(this.originX, pointer.x, TOUCH_STICK.maxRadius);
+    const dx = pointer.x - this.originX;
 
-    circle.on('pointerdown', () => {
-      circle.setAlpha(TOUCH_CONTROLS.alphaPressed);
-      handlers.onDown();
-    });
-    circle.on('pointerup', () => {
-      circle.setAlpha(TOUCH_CONTROLS.alphaIdle);
-      handlers.onUp();
-    });
-    circle.on('pointerout', () => {
-      circle.setAlpha(TOUCH_CONTROLS.alphaIdle);
-      handlers.onUp();
-    });
+    this.direction = stickDirection(dx, TOUCH_STICK.deadZonePx);
+    this.base.setX(this.originX);
+    this.knob.setX(this.originX + knobOffset(dx, TOUCH_STICK.maxRadius));
+  }
+
+  private onPointerUp(pointer: Phaser.Input.Pointer): void {
+    if (pointer.id !== this.stickPointerId) return;
+    this.release();
+  }
+
+  private release(): void {
+    this.stickPointerId = null;
+    this.direction = 0;
+    this.base.setVisible(false);
+    this.knob.setVisible(false);
+  }
+
+  private createHints(scene: Phaser.Scene): void {
+    this.addHint(scene, TOUCH_HINT_POSITIONS.move, '◀▶');
+    this.addHint(scene, TOUCH_HINT_POSITIONS.jump, '▲');
+  }
+
+  private addHint(scene: Phaser.Scene, pos: { x: number; y: number }, label: string): void {
+    this.hints.push(
+      scene.add
+        .circle(pos.x, pos.y, TOUCH_CONTROLS.hintRadius, TOUCH_CONTROLS.color, TOUCH_CONTROLS.alphaIdle)
+        .setScrollFactor(0)
+        .setDepth(20),
+      scene.add
+        .text(pos.x, pos.y, label, { fontFamily: 'monospace', fontSize: '18px', color: '#1b1b2a' })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(21),
+    );
+  }
+
+  private hideHints(): void {
+    for (const hint of this.hints) hint.setVisible(false);
+  }
+
+  private unsubscribe(scene: Phaser.Scene): void {
+    scene.input.off(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
+    scene.input.off(Phaser.Input.Events.POINTER_MOVE, this.onPointerMove, this);
+    scene.input.off(Phaser.Input.Events.POINTER_UP, this.onPointerUp, this);
+    scene.input.off(Phaser.Input.Events.POINTER_UP_OUTSIDE, this.onPointerUp, this);
+    scene.game.events.off(Phaser.Core.Events.BLUR, this.release, this);
   }
 }
