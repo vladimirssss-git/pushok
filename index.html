@@ -8,10 +8,32 @@
       html, body { margin: 0; padding: 0; height: 100%; background: #1b1b2a; overflow: hidden; touch-action: none; }
       body { display: flex; align-items: center; justify-content: center; }
       canvas { image-rendering: pixelated; touch-action: none; -webkit-tap-highlight-color: transparent; }
+      /* Портрет отдаёт крошечную игру в чёрных полях: просим повернуть.
+         `pointer: coarse` не даёт подсказке выскочить на десктопе
+         в узком окне. */
+      #rotate-hint { display: none; }
+      @media (orientation: portrait) and (pointer: coarse) {
+        #rotate-hint {
+          display: flex;
+          position: fixed;
+          inset: 0;
+          z-index: 10;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+          background: #1b1b2a;
+          color: #ffffff;
+          font-family: monospace;
+          font-size: 20px;
+          line-height: 1.5;
+          text-align: center;
+        }
+      }
     </style>
   </head>
   <body>
     <div id="game"></div>
+    <div id="rotate-hint">Поверни телефон 📱<br />Пушку нужен ландшафт</div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

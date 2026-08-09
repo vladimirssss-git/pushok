@@ -65,9 +65,14 @@ export class TouchControls {
     return pressed;
   }
 
-  /** Есть ли на устройстве тач-ввод — показывать управление только там. */
+  /**
+   * Есть ли на устройстве тач-ввод — показывать управление только там.
+   * `?touch` в URL включает его принудительно: без этого стик нельзя
+   * проверить в десктопном браузере (мышь даёт те же pointer-события,
+   * но `device.input.touch` там false, и управление просто не создаётся).
+   */
   static isTouchDevice(scene: Phaser.Scene): boolean {
-    return scene.sys.game.device.input.touch;
+    return scene.sys.game.device.input.touch || new URLSearchParams(location.search).has('touch');
   }
 
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
