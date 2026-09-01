@@ -42,8 +42,9 @@ export class QuestScene extends Phaser.Scene {
     this.placeAspect(TEX.questBoardKey, 157, 98, 80, 0.5, 0).setDepth(DEPTH.worldProps);
     this.placeAspect(TEX.questSignpost, 560, 230, 48, 0.5, 1).setDepth(DEPTH.worldProps);
 
-    // Лапы должны визуально стоять на дорожке, а не на верхней кромке ступеней.
-    const groundY = 254;
+    // Лапы стоят в середине прежнего зазора до нижней панели: герои опущены
+    // ещё на 11 логических пикселей и визуально опираются на дорожку.
+    const groundY = 265;
     this.pushok = this.placeAspect(TEX.pushokQuest, 95, groundY, 60, 0.5, 1).setDepth(DEPTH.characters);
     this.palkan = this.placeAspect(TEX.palkanQuest, 210, groundY - 2, 62, 0.5, 1).setDepth(DEPTH.characters);
     this.drawShadow(this.pushok.x, groundY, 22);
