@@ -95,10 +95,10 @@ export class EditorScene extends Phaser.Scene {
     this.dragPreview = this.add.graphics().setDepth(10);
 
     this.statusText = this.add.text(8, EDITOR.statusY, '', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#ffffff',
+      fontFamily: 'monospace', fontSize: '11px', color: '#ffffff', resolution: GAME.renderScale,
     }).setDepth(30);
     this.toastText = this.add.text(GAME.width / 2, EDITOR.toolbarHeight + 12, '', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#ffd479', backgroundColor: '#1b1b2a',
+      fontFamily: 'monospace', fontSize: '11px', color: '#ffd479', backgroundColor: '#1b1b2a', resolution: GAME.renderScale,
       padding: { x: 6, y: 3 },
     }).setOrigin(0.5, 0).setDepth(40).setAlpha(0);
 
@@ -153,14 +153,14 @@ export class EditorScene extends Phaser.Scene {
 
     this.addButton(bx, '◀', () => this.loadLevel(this.level - 1), 22);
     this.levelLabel = this.add.text(bx + 26, EDITOR.paletteY, `Ур. ${this.level}`, {
-      fontFamily: 'monospace', fontSize: '11px', color: '#ffffff',
+      fontFamily: 'monospace', fontSize: '11px', color: '#ffffff', resolution: GAME.renderScale,
     }).setOrigin(0, 0.5).setDepth(21);
     this.addButton(bx + 26 + 42, '▶', () => this.loadLevel(this.level + 1), 22);
   }
 
   private addButton(x: number, label: string, onClick: () => void, width: number = EDITOR.buttonWidth): number {
     this.add.text(x, EDITOR.paletteY, label, {
-      fontFamily: 'monospace', fontSize: '11px', color: '#1b1b2a', backgroundColor: '#ffd479',
+      fontFamily: 'monospace', fontSize: '11px', color: '#1b1b2a', backgroundColor: '#ffd479', resolution: GAME.renderScale,
       padding: { x: 6, y: 3 },
     })
       .setOrigin(0, 0.5)

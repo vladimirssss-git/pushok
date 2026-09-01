@@ -27,11 +27,13 @@ export class TouchControls {
   private jumpJustPressed = false;
   private stickPointerId: number | null = null;
   private originX = 0;
+  private readonly camera: Phaser.Cameras.Scene2D.Camera;
   private readonly base: Phaser.GameObjects.Arc;
   private readonly knob: Phaser.GameObjects.Arc;
   private readonly hints: (Phaser.GameObjects.Arc | Phaser.GameObjects.Text)[] = [];
 
   constructor(scene: Phaser.Scene) {
+    this.camera = scene.cameras.main;
     this.createHints(scene);
 
     this.base = scene.add
@@ -77,8 +79,9 @@ export class TouchControls {
 
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
     this.hideHints();
+    const pos = pointer.positionToCamera(this.camera) as Phaser.Math.Vector2;
 
-    if (zoneOf(pointer.x, GAME.width, TOUCH_STICK.moveZoneWidthRatio) === 'jump') {
+    if (zoneOf(pos.x, GAME.width, TOUCH_STICK.moveZoneWidthRatio) === 'jump') {
       this.jumpJustPressed = true;
       if (TOUCH_STICK.hapticJumpMs > 0) navigator.vibrate?.(TOUCH_STICK.hapticJumpMs);
       return;
@@ -88,17 +91,18 @@ export class TouchControls {
     if (this.stickPointerId !== null) return;
 
     this.stickPointerId = pointer.id;
-    this.originX = pointer.x;
+    this.originX = pos.x;
     this.direction = 0;
-    this.base.setPosition(pointer.x, pointer.y).setVisible(true);
-    this.knob.setPosition(pointer.x, pointer.y).setVisible(true);
+    this.base.setPosition(pos.x, pos.y).setVisible(true);
+    this.knob.setPosition(pos.x, pos.y).setVisible(true);
   }
 
   private onPointerMove(pointer: Phaser.Input.Pointer): void {
     if (pointer.id !== this.stickPointerId) return;
+    const pos = pointer.positionToCamera(this.camera) as Phaser.Math.Vector2;
 
-    this.originX = recenterOrigin(this.originX, pointer.x, TOUCH_STICK.maxRadius);
-    const dx = pointer.x - this.originX;
+    this.originX = recenterOrigin(this.originX, pos.x, TOUCH_STICK.maxRadius);
+    const dx = pos.x - this.originX;
 
     this.direction = stickDirection(dx, TOUCH_STICK.deadZonePx);
     this.base.setX(this.originX);
@@ -129,7 +133,9 @@ export class TouchControls {
         .setScrollFactor(0)
         .setDepth(20),
       scene.add
-        .text(pos.x, pos.y, label, { fontFamily: 'monospace', fontSize: '18px', color: '#1b1b2a' })
+        .text(pos.x, pos.y, label, {
+          fontFamily: 'monospace', fontSize: '18px', color: '#1b1b2a', resolution: GAME.renderScale,
+        })
         .setOrigin(0.5)
         .setScrollFactor(0)
         .setDepth(21),

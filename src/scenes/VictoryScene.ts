@@ -16,17 +16,17 @@ export class VictoryScene extends Phaser.Scene {
   create(): void {
     const cx = GAME.width / 2;
     this.add.text(cx, 110, 'Пушок дома!', {
-      fontFamily: 'monospace', fontSize: '32px', color: '#ffd479',
+      fontFamily: 'monospace', fontSize: '32px', color: '#ffd479', resolution: GAME.renderScale,
     }).setOrigin(0.5);
     this.add.text(cx, 160, `Все ${MAX_LEVEL} уровней пройдены`, {
-      fontFamily: 'monospace', fontSize: '16px', color: '#cfd2e6',
+      fontFamily: 'monospace', fontSize: '16px', color: '#cfd2e6', resolution: GAME.renderScale,
     }).setOrigin(0.5);
     this.add.text(cx, 190, `Рыбок собрано: ${this.fish}`, {
-      fontFamily: 'monospace', fontSize: '16px', color: '#cfd2e6',
+      fontFamily: 'monospace', fontSize: '16px', color: '#cfd2e6', resolution: GAME.renderScale,
     }).setOrigin(0.5);
     const hint = TouchControls.isTouchDevice(this) ? 'Тапни — сыграть ещё раз' : 'ПРОБЕЛ — сыграть ещё раз';
     this.add.text(cx, 230, hint, {
-      fontFamily: 'monospace', fontSize: '14px', color: '#7c81a0',
+      fontFamily: 'monospace', fontSize: '14px', color: '#7c81a0', resolution: GAME.renderScale,
     }).setOrigin(0.5);
 
     let restarted = false;

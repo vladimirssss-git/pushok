@@ -7,14 +7,19 @@ import { GameScene } from '@/scenes/GameScene';
 import { GameOverScene } from '@/scenes/GameOverScene';
 import { VictoryScene } from '@/scenes/VictoryScene';
 import { EditorScene } from '@/scenes/EditorScene';
+import { QuestScene } from '@/scenes/QuestScene';
 
 new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
-  width: GAME.width,
-  height: GAME.height,
+  // Canvas имеет настоящий Full HD backing buffer. Камеры ниже компенсируют
+  // его масштаб, поэтому сцены по-прежнему работают в логических 640×360.
+  width: GAME.width * GAME.renderScale,
+  height: GAME.height * GAME.renderScale,
   backgroundColor: GAME.backgroundColor,
-  pixelArt: true,
+  // Новый арт рисованный, поэтому масштабируем текстуры линейно, без pixel-art nearest-neighbor.
+  pixelArt: false,
+  antialias: true,
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -25,5 +30,18 @@ new Phaser.Game({
     default: 'arcade',
     arcade: { gravity: { x: 0, y: PHYSICS.gravityY }, debug: false },
   },
-  scene: [BootScene, PreloadScene, MenuScene, GameScene, GameOverScene, VictoryScene, EditorScene],
+  callbacks: {
+    postBoot: (game) => {
+      for (const scene of game.scene.scenes) {
+        const configureCamera = (): void => {
+          // Origin (0,0) не даёт zoom сместить логический кадр к центру большого canvas.
+          scene.cameras.main.setOrigin(0, 0).setZoom(GAME.renderScale);
+        };
+        // Camera Manager сбрасывает zoom при каждом повторном старте сцены.
+        scene.events.on(Phaser.Scenes.Events.START, configureCamera);
+        configureCamera();
+      }
+    },
+  },
+  scene: [BootScene, PreloadScene, MenuScene, QuestScene, GameScene, GameOverScene, VictoryScene, EditorScene],
 } as Phaser.Types.Core.GameConfig);

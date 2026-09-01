@@ -18,14 +18,14 @@ export class GameOverScene extends Phaser.Scene {
   create(): void {
     const cx = GAME.width / 2;
     this.add.text(cx, 130, 'Пушок устал', {
-      fontFamily: 'monospace', fontSize: '32px', color: '#ff8b8b',
+      fontFamily: 'monospace', fontSize: '32px', color: '#ff8b8b', resolution: GAME.renderScale,
     }).setOrigin(0.5);
     this.add.text(cx, 180, `Рыбок собрано: ${this.fish}`, {
-      fontFamily: 'monospace', fontSize: '16px', color: '#cfd2e6',
+      fontFamily: 'monospace', fontSize: '16px', color: '#cfd2e6', resolution: GAME.renderScale,
     }).setOrigin(0.5);
     const hint = TouchControls.isTouchDevice(this) ? 'Тапни — заново' : 'ПРОБЕЛ — заново';
     this.add.text(cx, 220, hint, {
-      fontFamily: 'monospace', fontSize: '14px', color: '#7c81a0',
+      fontFamily: 'monospace', fontSize: '14px', color: '#7c81a0', resolution: GAME.renderScale,
     }).setOrigin(0.5);
 
     let restarted = false;

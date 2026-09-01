@@ -95,7 +95,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.hud = this.add.text(8, 8, '', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#ffffff',
+      fontFamily: 'monospace', fontSize: '14px', color: '#ffffff', resolution: GAME.renderScale,
     }).setScrollFactor(0).setDepth(10);
     this.updateHud();
 

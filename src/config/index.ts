@@ -8,3 +8,4 @@ export * from './controls';
 export * from './enemy';
 export * from './customLevels';
 export * from './editor';
+export * from './quest';
