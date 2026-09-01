@@ -23,7 +23,13 @@ export class Dog extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
+    // Спрайт — HQ-исходник (для чёткости на full HD canvas), но игровой размер
+    // тела остаётся прежним: setDisplaySize/setSize независимы от нативного
+    // разрешения текстуры.
+    this.setDisplaySize(ENEMY.width, ENEMY.height);
+
     const body = this.body as Phaser.Physics.Arcade.Body;
+    body.setSize(ENEMY.width, ENEMY.height);
     body.setCollideWorldBounds(true);
     body.setMaxVelocityY(PHYSICS.maxFallSpeed);
     this.setOrigin(0.5, 1);

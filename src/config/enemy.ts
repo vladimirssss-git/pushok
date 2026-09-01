@@ -10,4 +10,7 @@ export const ENEMY = {
   dogDetectionRangeY: 140,
   /** Скорость прыжка собаки при погоне — та же физика, что и у игрока (`PHYSICS.jumpVelocity`). */
   dogJumpVelocity: -470,
+  /** Габариты тела собаки в игровом мире — источник спрайта HQ (для чёткости на full HD canvas), реальный размер тела задаётся тут. */
+  width: 25,
+  height: 34,
 } as const;

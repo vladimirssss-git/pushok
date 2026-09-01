@@ -84,6 +84,14 @@ function isLocalRequest(origin: string | undefined, host: string | undefined): b
 export default defineConfig({
   base: process.env.VITE_BASE ?? '/',
   plugins: [levelSaverPlugin()],
+  // Порт берётся из PORT, иначе штатный 5173. Vite сам PORT не читает, а без
+  // этого дев-сервер не поднять, когда 5173 занят другой сессией. Когда порт
+  // назначен снаружи, занимаем именно его (`strictPort`): молчаливый уход на
+  // соседний порт увёл бы превью не на тот адрес.
+  server: {
+    port: Number(process.env.PORT) || 5173,
+    strictPort: Boolean(process.env.PORT),
+  },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },

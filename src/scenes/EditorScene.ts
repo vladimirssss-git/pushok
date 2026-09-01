@@ -128,7 +128,9 @@ export class EditorScene extends Phaser.Scene {
     for (let x = T / 2; x < GAME.width; x += T) {
       this.add.image(x, FLOOR_TOP_Y + T / 2, TEX.ground).setDepth(2);
     }
-    this.add.image(PLAYER_START.x, PLAYER_START.y, TEX.pushok).setOrigin(0.5, 1).setAlpha(0.5).setDepth(2);
+    this.add.image(PLAYER_START.x, PLAYER_START.y, TEX.pushok)
+      .setDisplaySize(PLAYER.width, PLAYER.height)
+      .setOrigin(0.5, 1).setAlpha(0.5).setDepth(2);
   }
 
   private buildToolbar(): void {

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { PHYSICS, TEX } from '@/config';
+import { PHYSICS, PLAYER, TEX } from '@/config';
 import { shouldJump, horizontalVelocity, type JumpState } from '@/systems/movement';
 
 /** Котёнок Пушок — игрок. Только ввод, рендер и физика; логика — в systems/. */
@@ -11,7 +11,13 @@ export class Pushok extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
+    // Спрайт — HQ-исходник (для чёткости на full HD canvas), но игровой размер
+    // тела остаётся прежним: setDisplaySize/setSize независимы от нативного
+    // разрешения текстуры.
+    this.setDisplaySize(PLAYER.width, PLAYER.height);
+
     const body = this.body as Phaser.Physics.Arcade.Body;
+    body.setSize(PLAYER.width, PLAYER.height);
     body.setCollideWorldBounds(true);
     body.setMaxVelocityY(PHYSICS.maxFallSpeed);
     body.setDragX(PHYSICS.drag);
