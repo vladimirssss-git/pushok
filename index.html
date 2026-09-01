@@ -10,30 +10,103 @@
       canvas { touch-action: none; -webkit-tap-highlight-color: transparent; }
       /* Портрет отдаёт крошечную игру в чёрных полях: просим повернуть.
          `pointer: coarse` не даёт подсказке выскочить на десктопе
-         в узком окне. */
-      #rotate-hint { display: none; }
+         в узком окне; .force-touch делает тот же экран проверяемым через ?touch. */
+      #rotate-hint {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        align-items: center;
+        justify-content: center;
+        padding: max(22px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right))
+          max(22px, env(safe-area-inset-bottom)) max(22px, env(safe-area-inset-left));
+        box-sizing: border-box;
+        background:
+          linear-gradient(rgba(24, 74, 39, 0.2), rgba(10, 35, 31, 0.58)),
+          url('%BASE_URL%assets/sprites/menu-scene-1920x1080.png') center / cover no-repeat;
+        font-family: Arial, "Helvetica Neue", sans-serif;
+        color: #3a2214;
+        text-align: center;
+      }
+      .rotate-card {
+        width: min(78vw, 340px);
+        padding: 22px 20px 20px;
+        border: 6px solid #8b4a1e;
+        border-radius: 22px;
+        background: linear-gradient(145deg, #fff2bd, #e8c77f);
+        box-shadow: 0 0 0 3px #d69132, 0 10px 0 #4d2a16, 0 18px 34px rgba(0, 0, 0, 0.42);
+      }
+      .rotate-brand {
+        margin-bottom: 4px;
+        color: #f5a900;
+        font-weight: 900;
+        font-size: clamp(28px, 9vw, 46px);
+        letter-spacing: 1px;
+        -webkit-text-stroke: 2px #5c2d10;
+        text-shadow: 0 4px 0 #5c2d10;
+      }
+      .turn-icon { position: relative; width: 104px; height: 78px; margin: 8px auto 4px; }
+      .turn-phone {
+        position: absolute;
+        left: 35px;
+        top: 8px;
+        width: 32px;
+        height: 56px;
+        border: 5px solid #5c2d10;
+        border-radius: 9px;
+        background: #63ccec;
+        transform: rotate(-18deg);
+        box-shadow: inset 0 0 0 3px #fff1b4;
+      }
+      .turn-phone::after {
+        content: '';
+        position: absolute;
+        bottom: 2px;
+        left: 12px;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: #5c2d10;
+      }
+      .turn-arrow {
+        position: absolute;
+        inset: 0;
+        border: 5px solid #f29b16;
+        border-left-color: transparent;
+        border-bottom-color: transparent;
+        border-radius: 50%;
+        transform: rotate(12deg);
+      }
+      .turn-arrow::after {
+        content: '';
+        position: absolute;
+        right: -8px;
+        bottom: 5px;
+        border: 9px solid transparent;
+        border-top-color: #f29b16;
+        transform: rotate(-22deg);
+      }
+      .rotate-title { display: block; font-size: clamp(22px, 7vw, 32px); font-weight: 900; }
+      .rotate-copy { display: block; margin-top: 7px; font-size: clamp(14px, 4.5vw, 18px); line-height: 1.25; }
       @media (orientation: portrait) and (pointer: coarse) {
-        #rotate-hint {
-          display: flex;
-          position: fixed;
-          inset: 0;
-          z-index: 10;
-          align-items: center;
-          justify-content: center;
-          padding: 24px;
-          background: #1b1b2a;
-          color: #ffffff;
-          font-family: monospace;
-          font-size: 20px;
-          line-height: 1.5;
-          text-align: center;
-        }
+        #rotate-hint { display: flex; }
+      }
+      @media (orientation: portrait) {
+        html.force-touch #rotate-hint { display: flex; }
       }
     </style>
   </head>
   <body>
     <div id="game"></div>
-    <div id="rotate-hint">Поверни телефон 📱<br />Пушку нужен ландшафт</div>
+    <div id="rotate-hint" role="status" aria-live="polite">
+      <div class="rotate-card">
+        <div class="rotate-brand">ПУШОК</div>
+        <div class="turn-icon" aria-hidden="true"><div class="turn-arrow"></div><div class="turn-phone"></div></div>
+        <strong class="rotate-title">Поверни телефон</strong>
+        <span class="rotate-copy">Так Пушку будет видно всю дорожку к маяку</span>
+      </div>
+    </div>
+    <script>if (new URLSearchParams(location.search).has('touch')) document.documentElement.classList.add('force-touch')</script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

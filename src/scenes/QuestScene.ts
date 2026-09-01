@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
-import { GAME, QUEST_DIALOGUE, TEX } from '@/config';
+import { GAME, QUEST_DIALOGUE, QUEST_ROUTE, TEX } from '@/config';
 import { TouchControls } from '@/systems/touchControls';
+import { advanceProgress, destinationOnPath, pointAtProgress } from '@/systems/questPath';
 
 /** Единый z-order сцены: мир снизу вверх, UI поверх всего. */
 const DEPTH = {
@@ -20,6 +21,7 @@ const DEPTH = {
  */
 export class QuestScene extends Phaser.Scene {
   private pushok!: Phaser.GameObjects.Image;
+  private pushokShadow!: Phaser.GameObjects.Ellipse;
   private palkan!: Phaser.GameObjects.Image;
   private speechBubble!: Phaser.GameObjects.Image;
 
@@ -27,6 +29,9 @@ export class QuestScene extends Phaser.Scene {
   private keyA!: Phaser.Input.Keyboard.Key;
   private keyD!: Phaser.Input.Keyboard.Key;
   private moveDir = 0;
+  private touchRouteEnabled = false;
+  private routeProgress = 0;
+  private routeTargetProgress: number | null = null;
 
   constructor() {
     super('Quest');
@@ -35,6 +40,8 @@ export class QuestScene extends Phaser.Scene {
   create(): void {
     const w = GAME.width;
     const h = GAME.height;
+    this.routeProgress = 0;
+    this.routeTargetProgress = null;
 
     this.drawBackground(h);
 
@@ -44,10 +51,11 @@ export class QuestScene extends Phaser.Scene {
 
     // Лапы стоят в середине прежнего зазора до нижней панели: герои опущены
     // ещё на 11 логических пикселей и визуально опираются на дорожку.
-    const groundY = 265;
-    this.pushok = this.placeAspect(TEX.pushokQuest, 95, groundY, 60, 0.5, 1).setDepth(DEPTH.characters);
+    const start = QUEST_ROUTE.points[0];
+    const groundY = start.y;
+    this.pushok = this.placeAspect(TEX.pushokQuest, start.x, groundY, 60, 0.5, 1).setDepth(DEPTH.characters);
     this.palkan = this.placeAspect(TEX.palkanQuest, 210, groundY - 2, 62, 0.5, 1).setDepth(DEPTH.characters);
-    this.drawShadow(this.pushok.x, groundY, 22);
+    this.pushokShadow = this.drawShadow(this.pushok.x, groundY, 22);
     this.drawShadow(this.palkan.x, groundY - 2, 24);
 
     this.scheduleIdleLife(this.palkan);
@@ -68,7 +76,13 @@ export class QuestScene extends Phaser.Scene {
 
     this.input.keyboard?.on('keydown-ESC', () => this.scene.start('Menu'));
 
-    TouchControls.isTouchDevice(this);
+    this.touchRouteEnabled = TouchControls.isTouchDevice(this);
+    if (this.touchRouteEnabled) {
+      this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onQuestPointerDown, this);
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+        this.input.off(Phaser.Input.Events.POINTER_DOWN, this.onQuestPointerDown, this);
+      });
+    }
   }
 
   /**
@@ -114,6 +128,11 @@ export class QuestScene extends Phaser.Scene {
   }
 
   override update(_time: number, delta: number): void {
+    if (this.touchRouteEnabled) {
+      this.updateRouteMovement(delta);
+      return;
+    }
+
     const left = this.cursors.left.isDown || this.keyA.isDown;
     const right = this.cursors.right.isDown || this.keyD.isDown;
     this.moveDir = left ? -1 : right ? 1 : 0;
@@ -123,7 +142,39 @@ export class QuestScene extends Phaser.Scene {
       const minX = 40;
       const maxX = GAME.width - 40;
       this.pushok.x = Phaser.Math.Clamp(this.pushok.x + this.moveDir * speed, minX, maxX);
+      this.pushokShadow.x = this.pushok.x;
       this.pushok.setFlipX(this.moveDir < 0);
+    }
+  }
+
+  private onQuestPointerDown(pointer: Phaser.Input.Pointer): void {
+    const pos = pointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
+    if (pos.y >= QUEST_ROUTE.bottomUiTopY) return;
+
+    const destination = destinationOnPath(pos, QUEST_ROUTE.points, QUEST_ROUTE.tapTolerancePx);
+    if (destination) this.routeTargetProgress = destination.progress;
+  }
+
+  private updateRouteMovement(delta: number): void {
+    if (this.routeTargetProgress === null) return;
+
+    const previousProgress = this.routeProgress;
+    this.routeProgress = advanceProgress(
+      this.routeProgress,
+      this.routeTargetProgress,
+      QUEST_ROUTE.speedPxPerMs * delta,
+    );
+    const point = pointAtProgress(QUEST_ROUTE.points, this.routeProgress);
+    if (!point) return;
+
+    this.pushok.setPosition(point.x, point.y);
+    this.pushokShadow.setPosition(point.x, point.y - 1);
+    const progressDelta = this.routeProgress - previousProgress;
+    if (progressDelta !== 0) this.pushok.setFlipX(progressDelta < 0);
+
+    if (Math.abs(this.routeTargetProgress - this.routeProgress) <= QUEST_ROUTE.arrivalEpsilonPx) {
+      this.routeProgress = this.routeTargetProgress;
+      this.routeTargetProgress = null;
     }
   }
 
@@ -146,8 +197,8 @@ export class QuestScene extends Phaser.Scene {
     this.time.delayedCall(1500 + Math.random() * 2000, run);
   }
 
-  private drawShadow(x: number, y: number, width: number): void {
-    this.add.ellipse(x, y - 1, width, width * 0.32, 0x000000, 0.28).setDepth(DEPTH.worldProps);
+  private drawShadow(x: number, y: number, width: number): Phaser.GameObjects.Ellipse {
+    return this.add.ellipse(x, y - 1, width, width * 0.32, 0x000000, 0.28).setDepth(DEPTH.worldProps);
   }
 
   /**
@@ -166,10 +217,12 @@ export class QuestScene extends Phaser.Scene {
       const baseScale = btn.scaleX;
       btn.on('pointerover', () => btn.setScale(baseScale * 1.04));
       btn.on('pointerout', () => btn.setScale(baseScale));
-      btn.on('pointerdown', () => btn.setScale(baseScale * 0.96));
+      btn.on('pointerdown', () => {
+        btn.setScale(baseScale * 0.96);
+        entry.onClick?.();
+      });
       btn.on('pointerup', () => {
         btn.setScale(baseScale * 1.04);
-        entry.onClick?.();
       });
     });
   }

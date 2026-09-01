@@ -31,5 +31,36 @@ export const QUEST_HUD = {
   starsTotal: 5,
 } as const;
 
+export interface QuestRoutePoint {
+  x: number;
+  y: number;
+}
+
+/**
+ * Разрешённый мобильный маршрут первого квеста. Точки идут по центру дорожки,
+ * ступеней и полотна моста; вода, небо и нижний UI намеренно остаются вне
+ * коридора принятия тапа.
+ */
+export const QUEST_ROUTE = {
+  points: [
+    { x: 95, y: 265 },
+    { x: 140, y: 262 },
+    { x: 180, y: 248 },
+    { x: 215, y: 225 },
+    { x: 250, y: 202 },
+    { x: 285, y: 184 },
+    { x: 325, y: 170 },
+    { x: 365, y: 164 },
+    { x: 405, y: 169 },
+    { x: 445, y: 184 },
+    { x: 480, y: 205 },
+    { x: 510, y: 230 },
+  ] satisfies QuestRoutePoint[],
+  tapTolerancePx: 24,
+  bottomUiTopY: 260,
+  speedPxPerMs: 0.065,
+  arrivalEpsilonPx: 0.5,
+} as const;
+
 /** Дистанция в пикселях, на которой Пушок «слышит» пса и всплывает диалог. */
 export const QUEST_TALK_RANGE = 46;

@@ -38,11 +38,14 @@ const HINT_IMG_X = 937;
 const HINT_IMG_Y = 755;
 
 export class MenuScene extends Phaser.Scene {
+  private transitioning = false;
+
   constructor() {
     super('Menu');
   }
 
   create(): void {
+    this.transitioning = false;
     // На большом холсте (640×360) sub-pixel позиционирование текста поверх кнопок
     // важнее, чем «прилипание» пикселей к сетке — иначе подпись дрожит при tween.
     this.cameras.main.roundPixels = false;
@@ -100,17 +103,20 @@ export class MenuScene extends Phaser.Scene {
     zone.on('pointerdown', () => {
       this.tweens.killTweensOf(glow);
       this.tweens.add({ targets: glow, fillAlpha: 0.35, scaleX: 0.97, scaleY: 0.97, duration: 80, ease: 'Sine.easeOut' });
+      // iOS Safari может потерять object-level pointerup после изменения
+      // touch-action/масштаба canvas. Переход запускаем по гарантированному
+      // pointerdown, а guard ниже не даёт стартовать сцену дважды.
+      this.goToLevel(btn.sceneKey);
     });
     zone.on('pointerup', () => {
       this.tweens.killTweensOf(glow);
-      this.tweens.add({
-        targets: glow, fillAlpha: 0.4, scaleX: 1.05, scaleY: 1.1, duration: 100, ease: 'Sine.easeOut',
-        onComplete: () => this.goToLevel(btn.sceneKey),
-      });
+      this.tweens.add({ targets: glow, fillAlpha: 0.4, scaleX: 1.05, scaleY: 1.1, duration: 100, ease: 'Sine.easeOut' });
     });
   }
 
   private goToLevel(sceneKey: string): void {
+    if (this.transitioning) return;
+    this.transitioning = true;
     this.cameras.main.fadeOut(200, 0, 0, 0);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       this.scene.start(sceneKey);
