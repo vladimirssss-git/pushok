@@ -36,3 +36,5 @@ docs/.trash/
 *.log
 npm-debug.log*
 coverage/
+
+.claude/settings.local.json
