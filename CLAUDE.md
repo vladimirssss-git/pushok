@@ -1,5 +1,9 @@
 # Пушок — Claude Code Operating Manual
 
+Универсальный контракт (git, ветки, коммиты, безопасность, Definition of Done)
+лежит глобально в `~/.claude/CLAUDE.md`. Дельты проекта — в `AGENTS.md`.
+Здесь только специфика Пушка.
+
 ## Project
 
 Браузерная 2D-игра про котёнка Пушка. TypeScript + Phaser 3 + Vite, без бэкенда.
@@ -8,12 +12,7 @@
 - GitHub: https://github.com/vladimirssss-git/pushok
 - Прод: https://vladimirssss-git.github.io/pushok/ (после включения Pages)
 
-## Read order
-
-1. Прочитать `CLAUDE.md` (этот файл).
-2. Прочитать `AGENTS.md` — универсальный инженерный контракт.
-3. Прочитать базу знаний в Obsidian: `docs/01 Design/Пушок — гейм-дизайн.md`.
-4. Проверить git: `git status --short --branch`, `git log --oneline -5`.
+Перед началом работы прочитать базу знаний: `docs/01 Design/Пушок — гейм-дизайн.md`.
 
 ## Architecture
 
@@ -75,30 +74,6 @@ npm run lint         # eslint
 npm test             # vitest run
 ```
 
-## Before coding report
-
-Коротко отчитаться перед началом:
-- Ветка
-- Задача
-- Затронутые модули (`scenes/`, `entities/`, `systems/`, `config/`, assets)
-- Файлы, которые изменятся
-- Риски (что может сломаться в геймплее)
-- Какие тесты запустить
-- Какой smoke сделать
-- Нужно ли одобрение перед реализацией
-
-## After coding report
-
-- Что изменено
-- Коммит (hash)
-- Тесты: результат
-- Typecheck / build: результат
-- Smoke: результат
-- Docs updated (Obsidian, `docs/`)
-- Деплой: статус
-- Риски
-- Rollback plan
-
 ## Smoke matrix
 
 После любого изменения геймплея проверить руками в `npm run dev`:
@@ -143,15 +118,6 @@ npm test             # vitest run
 - Аудио — `.ogg` + `.m4a` для совместимости с Safari.
 - Файлы больше 5 МБ в git не коммитить. Нужно больше — заводить Git LFS отдельной задачей.
 
-## Documentation
-
-После любой содержательной задачи:
-
-1. Обновить соответствующую заметку в `docs/` (дизайн, техника или девлог).
-2. Добавить запись в `docs/05 Devlog/` при заметном изменении геймплея.
-3. Обновить `CLAUDE.md`, если изменилась архитектура, команды или правила.
-4. Задача не считается завершённой без документационного pass.
-
 ## Obsidian
 
 `docs/` — это vault. Открывать в Obsidian: Open folder as vault → выбрать `docs`.
@@ -162,11 +128,8 @@ npm test             # vitest run
 - Плагины и рабочее состояние Obsidian (`workspace.json`, `.obsidian/plugins/`)
   в git не попадают — см. `.gitignore`.
 
-## Definition of Done
+После любой содержательной задачи:
 
-- Реализация завершена
-- `npm test`, `npm run typecheck`, `npm run build` прошли
-- Smoke прошёл
-- Obsidian обновлён
-- Код закоммичен и запушен
-- Риски отчитаны
+1. Обновить соответствующую заметку в `docs/` (дизайн, техника или девлог).
+2. Добавить запись в `docs/05 Devlog/` при заметном изменении геймплея.
+3. Обновить `CLAUDE.md`, если изменилась архитектура, команды или правила.
