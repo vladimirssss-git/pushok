@@ -6,6 +6,7 @@
 export const TEX = {
   pushok: 'pushok',
   fish: 'fish',
+  platformerBg: 'platformer-courtyard-bg',
   ground: 'ground',
   dog: 'dog',
   exit: 'exit',

@@ -7,4 +7,7 @@
 export const PLAYER = {
   width: 24,
   height: 28,
+  /** Иллюстрация выше хитбокса, чтобы одежда и антропоморфный силуэт читались. */
+  visualWidth: 48,
+  visualHeight: 60,
 } as const;

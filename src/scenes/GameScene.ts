@@ -62,6 +62,10 @@ export class GameScene extends Phaser.Scene {
     const generated = custom ?? generateLevel(this.level);
     const dogPatrol = custom?.dogPatrol ?? DOG_PATROL;
 
+    this.add.image(GAME.width / 2, GAME.height / 2, TEX.platformerBg)
+      .setDisplaySize(GAME.width, GAME.height)
+      .setDepth(-20);
+
     this.platforms = this.physics.add.staticGroup();
     this.buildLevel(generated.ledges);
 
@@ -94,8 +98,16 @@ export class GameScene extends Phaser.Scene {
       kb.on('keydown-ESC', () => this.backToEditor('quit'));
     }
 
-    this.hud = this.add.text(8, 8, '', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#ffffff', resolution: GAME.renderScale,
+    this.hud = this.add.text(10, 10, '', {
+      fontFamily: 'Arial, "Helvetica Neue", sans-serif',
+      fontStyle: 'bold',
+      fontSize: '12px',
+      color: '#fff2c7',
+      stroke: '#342418',
+      strokeThickness: 3,
+      backgroundColor: '#342418cc',
+      padding: { x: 7, y: 5 },
+      resolution: GAME.renderScale,
     }).setScrollFactor(0).setDepth(10);
     this.updateHud();
 
