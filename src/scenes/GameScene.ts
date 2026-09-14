@@ -146,11 +146,11 @@ export class GameScene extends Phaser.Scene {
       this.platforms.create(x, FLOOR_TOP_Y + t / 2, TEX.ground);
     }
     // Уступы: расстановка процедурная (systems/levelGenerator.ts), допрыгиваемость
-    // гарантирована той же физикой, что и в systems/jumpGeometry.ts.
+    // гарантирована той же физикой, что и в systems/jumpGeometry.ts). Каждый уступ
+    // рисуется цельным балконом, но его физический прямоугольник остаётся прежним.
     for (const ledge of ledges) {
-      for (let i = 0; i < ledge.tiles; i += 1) {
-        this.platforms.create(ledge.leftX + i * t + t / 2, ledge.topY + t / 2, TEX.ground);
-      }
+      const balcony = this.platforms.create(ledge.leftX, ledge.topY, TEX.ledge) as Phaser.Physics.Arcade.Image;
+      balcony.setOrigin(0, 0).setDisplaySize(ledge.tiles * t, t).refreshBody();
     }
   }
 
