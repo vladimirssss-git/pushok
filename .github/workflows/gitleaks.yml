@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: read
+  # gitleaks-action читает список коммитов PR через API.
+  pull-requests: read
 
 jobs:
   gitleaks:
