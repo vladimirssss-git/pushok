@@ -1,0 +1,12 @@
+# Локальная проверка секретов перед коммитом (дополняет CI-workflow gitleaks).
+# Установка: brew install gitleaks pre-commit && pre-commit install
+# Без pre-commit: gitleaks git --staged --redact --no-banner
+repos:
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: gitleaks (staged)
+        entry: gitleaks git --staged --redact --no-banner
+        language: system
+        pass_filenames: false
+        always_run: true
